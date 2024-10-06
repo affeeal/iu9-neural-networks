@@ -5,7 +5,7 @@
 namespace lab1 {
 
 template <typename T>
-std::vector<std::vector<T>> GetPowerset(const std::vector<T>& set) {
+std::vector<std::vector<T>> GeneratePowerset(const std::vector<T>& set) {
   const auto set_size = set.size();
   const auto powerset_size = 2 << set_size;
 
