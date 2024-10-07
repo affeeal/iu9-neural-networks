@@ -1,5 +1,6 @@
 #include "data_supplier.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iterator>
 #include <random>
@@ -36,7 +37,7 @@ class SymbolModifier final {
         indices_to_modify_(std::move(indices_to_modify)) {}
 
   std::vector<std::shared_ptr<const Symbol>> GenerateModifications(
-      const IPixelModifier& modifier) const {
+      const IPixelModifier& pixel_modifier) const {
     const auto indices_powerset = GeneratePowerset(indices_to_modify_);
 
     auto modifications = std::vector<std::shared_ptr<const Symbol>>{};
@@ -47,7 +48,7 @@ class SymbolModifier final {
 
       for (auto&& index : indices) {
         auto& value = variation.scan(index);
-        value = modifier.Modify(value);
+        value = pixel_modifier.Modify(value);
       }
 
       // TODO: Does emplace_back work here?
@@ -59,8 +60,10 @@ class SymbolModifier final {
   }
 };
 
+constexpr std::size_t kScanSize = 20;
+
 const std::array kSymbolModifiers{
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
                         1, 0, 0, 1,  //
                         1, 0, 0, 1,  //
@@ -69,7 +72,7 @@ const std::array kSymbolModifiers{
                     },
                     L'0'},
                    {0, 3, 16, 19}},
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         0, 0, 1, 0,  //
                         0, 1, 1, 0,  //
                         0, 0, 1, 0,  //
@@ -78,7 +81,7 @@ const std::array kSymbolModifiers{
                     },
                     L'1'},
                    {2, 5, 17, 19}},
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
                         0, 0, 0, 1,  //
                         1, 1, 1, 1,  //
@@ -87,7 +90,7 @@ const std::array kSymbolModifiers{
                     },
                     L'2'},
                    {3, 8, 11, 16}},
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
                         0, 0, 0, 1,  //
                         1, 1, 1, 1,  //
@@ -96,7 +99,7 @@ const std::array kSymbolModifiers{
                     },
                     L'3'},
                    {3, 8, 11, 19}},
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 0, 0, 1,  //
                         1, 0, 0, 1,  //
                         1, 1, 1, 1,  //
@@ -105,7 +108,7 @@ const std::array kSymbolModifiers{
                     },
                     L'4'},
                    {0, 3, 8, 11}},
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
                         1, 0, 0, 0,  //
                         1, 1, 1, 1,  //
@@ -114,7 +117,7 @@ const std::array kSymbolModifiers{
                     },
                     L'5'},
                    {0, 8, 11, 19}},
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
                         1, 0, 0, 0,  //
                         1, 1, 1, 1,  //
@@ -123,7 +126,7 @@ const std::array kSymbolModifiers{
                     },
                     L'6'},
                    {0, 11, 16, 19}},
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
                         0, 0, 0, 1,  //
                         0, 0, 1, 0,  //
@@ -132,7 +135,7 @@ const std::array kSymbolModifiers{
                     },
                     L'7'},
                    {9, 11, 14, 17}},
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
                         1, 0, 0, 1,  //
                         1, 1, 1, 1,  //
@@ -141,7 +144,7 @@ const std::array kSymbolModifiers{
                     },
                     L'8'},
                    {0, 3, 16, 19}},
-    SymbolModifier{{{
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
                         1, 0, 0, 1,  //
                         1, 1, 1, 1,  //
@@ -180,6 +183,9 @@ struct DataSupplier::Parametrization final {
   Parametrization();
 };
 
+const DataSupplier::Parametrization& DataSupplier::kParametrization =
+    DataSupplier::Parametrization::GetInstance();
+
 DataSupplier::Parametrization::Parametrization() {
   const auto pixel_reverser = PixelReverser{};
   for (auto&& symbol_modifier : kSymbolModifiers) {
@@ -209,8 +215,11 @@ DataSupplier::Parametrization::Parametrization() {
     }
   }
 
-  for (auto&& dataset : {training, validation, testing}) {
-    std::shuffle(dataset.begin(), dataset.end(), generator);
+  for (auto&& [begin, end] :
+       {std::make_pair(training.begin(), training.end()),
+        std::make_pair(validation.begin(), validation.end()),
+        std::make_pair(testing.begin(), testing.end())}) {
+    std::shuffle(begin, end, generator);
   }
 }
 
@@ -219,9 +228,11 @@ DataSupplier::DataSupplier(const double low_score, const double high_score) {
       std::unordered_map<wchar_t, std::shared_ptr<const Eigen::VectorXd>>{};
   label_to_y.reserve(Parametrization::kLabelsNumber);
   for (std::size_t i = 0; i < Parametrization::kLabelsNumber; ++i) {
-    auto y = std::make_shared<const Eigen::VectorXd>(
-        Eigen::VectorXd::Zero(Parametrization::kLabelsNumber));
-    label_to_y.insert({Parametrization::kLabels[i], std::move(y)});
+    auto y = Eigen::VectorXd(Parametrization::kLabelsNumber);
+    y.fill(low_score);
+    y(i) = high_score;
+    label_to_y.insert({Parametrization::kLabels[i],
+                       std::make_shared<const Eigen::VectorXd>(std::move(y))});
   }
 
   for (auto&& [dataset, symbol_dataset] :

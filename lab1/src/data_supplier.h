@@ -39,6 +39,10 @@ class Data final : public IData {
   std::shared_ptr<const Eigen::VectorXd> y_;
 
  public:
+  Data(std::shared_ptr<const Symbol> x,
+       std::shared_ptr<const Eigen::VectorXd> y)
+      : x_(std::move(x)), y_(std::move(y)) {}
+
   const Eigen::VectorXd& GetX() const override { return x_->scan; }
   const Eigen::VectorXd& GetY() const override { return *y_; }
 };
