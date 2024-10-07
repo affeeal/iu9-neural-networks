@@ -1,8 +1,10 @@
-#include "generator.h"
+#include "data_supplier.h"
 
-#include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <random>
+
+#include "util.h"
 
 namespace lab1 {
 
@@ -152,6 +154,32 @@ const std::array kSymbolModifiers{
 
 }  // namespace
 
+struct DataSupplier::Parametrization final {
+  static constexpr double kTrainingRatio = 0.6;
+  static constexpr double kValidationRatio = 0.2;
+  static constexpr double kTestingRatio = 0.2;
+  static constexpr std::array kLabels{L'0', L'1', L'2', L'3', L'4',
+                                      L'5', L'6', L'7', L'8', L'9'};
+  static constexpr std::size_t kLabelsNumber = kLabels.size();
+
+  std::vector<std::shared_ptr<const Symbol>> training;
+  std::vector<std::shared_ptr<const Symbol>> validation;
+  std::vector<std::shared_ptr<const Symbol>> testing;
+
+  static const Parametrization& GetInstance() {
+    static Parametrization parametrization{};
+    return parametrization;
+  }
+
+  Parametrization(const Parametrization& other) = delete;
+  Parametrization& operator=(const Parametrization& other) = delete;
+
+ private:
+  std::default_random_engine generator;
+
+  Parametrization();
+};
+
 DataSupplier::Parametrization::Parametrization() {
   const auto pixel_reverser = PixelReverser{};
   for (auto&& symbol_modifier : kSymbolModifiers) {
@@ -162,9 +190,10 @@ DataSupplier::Parametrization::Parametrization() {
     auto begin = std::make_move_iterator(modifications.begin());
     auto error = 0.0;
     for (auto&& [dataset, ratio] : {
-             std::make_pair(&training, kTrainingRatio),
-             std::make_pair(&validation, kValidationRatio),
-             std::make_pair(&testing, kTestingRatio),
+             std::make_pair(std::reference_wrapper(training), kTrainingRatio),
+             std::make_pair(std::reference_wrapper(validation),
+                            kValidationRatio),
+             std::make_pair(std::reference_wrapper(testing), kTestingRatio),
          }) {
       double part_size;
       error += std::modf(modifications_size * ratio, &part_size);
@@ -174,14 +203,39 @@ DataSupplier::Parametrization::Parametrization() {
       }
 
       auto end = begin + part_size;
-      dataset->reserve(dataset->capacity() + part_size);
-      dataset->insert(dataset->end(), begin, end);
+      dataset.reserve(dataset.capacity() + part_size);
+      dataset.insert(dataset.end(), begin, end);
       begin = std::move(end);
     }
   }
 
   for (auto&& dataset : {training, validation, testing}) {
     std::shuffle(dataset.begin(), dataset.end(), generator);
+  }
+}
+
+DataSupplier::DataSupplier(const double low_score, const double high_score) {
+  auto label_to_y =
+      std::unordered_map<wchar_t, std::shared_ptr<const Eigen::VectorXd>>{};
+  label_to_y.reserve(Parametrization::kLabelsNumber);
+  for (std::size_t i = 0; i < Parametrization::kLabelsNumber; ++i) {
+    auto y = std::make_shared<const Eigen::VectorXd>(
+        Eigen::VectorXd::Zero(Parametrization::kLabelsNumber));
+    label_to_y.insert({Parametrization::kLabels[i], std::move(y)});
+  }
+
+  for (auto&& [dataset, symbol_dataset] :
+       {std::make_pair(std::reference_wrapper(training_),
+                       std::reference_wrapper(kParametrization.training)),
+        std::make_pair(std::reference_wrapper(validation_),
+                       std::reference_wrapper(kParametrization.validation)),
+        std::make_pair(std::reference_wrapper(testing_),
+                       std::reference_wrapper(kParametrization.testing))}) {
+    dataset.reserve(symbol_dataset.size());
+    for (auto&& symbol : symbol_dataset) {
+      dataset.push_back(
+          std::make_shared<const Data>(symbol, label_to_y.at(symbol->label)));
+    }
   }
 }
 
