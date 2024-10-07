@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <iterator>
 #include <random>
 
 #include "util.h"
@@ -70,7 +69,7 @@ const std::array kSymbolModifiers{
                         1, 0, 0, 1,  //
                         1, 1, 1, 1,  //
                     },
-                    L'0'},
+                    "0"},
                    {0, 3, 16, 19}},
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         0, 0, 1, 0,  //
@@ -79,7 +78,7 @@ const std::array kSymbolModifiers{
                         0, 0, 1, 0,  //
                         0, 1, 1, 1,  //
                     },
-                    L'1'},
+                    "1"},
                    {2, 5, 17, 19}},
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
@@ -88,7 +87,7 @@ const std::array kSymbolModifiers{
                         1, 0, 0, 0,  //
                         1, 1, 1, 1,  //
                     },
-                    L'2'},
+                    "2"},
                    {3, 8, 11, 16}},
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
@@ -97,7 +96,7 @@ const std::array kSymbolModifiers{
                         0, 0, 0, 1,  //
                         1, 1, 1, 1,  //
                     },
-                    L'3'},
+                    "3"},
                    {3, 8, 11, 19}},
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 0, 0, 1,  //
@@ -106,7 +105,7 @@ const std::array kSymbolModifiers{
                         0, 0, 0, 1,  //
                         0, 0, 0, 1,  //
                     },
-                    L'4'},
+                    "4"},
                    {0, 3, 8, 11}},
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
@@ -115,7 +114,7 @@ const std::array kSymbolModifiers{
                         0, 0, 0, 1,  //
                         1, 1, 1, 1,  //
                     },
-                    L'5'},
+                    "5"},
                    {0, 8, 11, 19}},
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
@@ -124,7 +123,7 @@ const std::array kSymbolModifiers{
                         1, 0, 0, 1,  //
                         1, 1, 1, 1,  //
                     },
-                    L'6'},
+                    "6"},
                    {0, 11, 16, 19}},
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
@@ -133,7 +132,7 @@ const std::array kSymbolModifiers{
                         0, 1, 0, 0,  //
                         1, 0, 0, 0,  //
                     },
-                    L'7'},
+                    "7"},
                    {9, 11, 14, 17}},
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
@@ -142,7 +141,7 @@ const std::array kSymbolModifiers{
                         1, 0, 0, 1,  //
                         1, 1, 1, 1,  //
                     },
-                    L'8'},
+                    "8"},
                    {0, 3, 16, 19}},
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
@@ -151,18 +150,35 @@ const std::array kSymbolModifiers{
                         0, 0, 0, 1,  //
                         1, 1, 1, 1,  //
                     },
-                    L'9'},
+                    "9"},
                    {0, 3, 8, 19}},
 };
 
 }  // namespace
 
+constexpr std::size_t kRows = 5;
+constexpr std::size_t kColumns = 4;
+
+std::ostream& operator<<(std::ostream& os, const Data& data) {
+  os << "Label: " << data.ToString() << '\n';
+  os << "Scan:\n";
+  const auto& x = data.GetX();
+  for (std::size_t i = 0; i < kRows; ++i) {
+    for (std::size_t j = 0; j < kColumns; ++j) {
+      os << x(i * kColumns + j) << ' ';
+    }
+    os << '\n';
+  }
+  os << "Y:\n" << data.GetY() << '\n';
+  return os;
+}
+
 struct DataSupplier::Parametrization final {
-  static constexpr double kTrainingRatio = 0.6;
-  static constexpr double kValidationRatio = 0.2;
+  static constexpr double kTrainingRatio = 0.7;
+  static constexpr double kValidationRatio = 0.1;
   static constexpr double kTestingRatio = 0.2;
-  static constexpr std::array kLabels{L'0', L'1', L'2', L'3', L'4',
-                                      L'5', L'6', L'7', L'8', L'9'};
+  static constexpr std::array kLabels{"0", "1", "2", "3", "4",
+                                      "5", "6", "7", "8", "9"};
   static constexpr std::size_t kLabelsNumber = kLabels.size();
 
   std::vector<std::shared_ptr<const Symbol>> training;
@@ -225,7 +241,7 @@ DataSupplier::Parametrization::Parametrization() {
 
 DataSupplier::DataSupplier(const double low_score, const double high_score) {
   auto label_to_y =
-      std::unordered_map<wchar_t, std::shared_ptr<const Eigen::VectorXd>>{};
+      std::unordered_map<std::string, std::shared_ptr<const Eigen::VectorXd>>{};
   label_to_y.reserve(Parametrization::kLabelsNumber);
   for (std::size_t i = 0; i < Parametrization::kLabelsNumber; ++i) {
     auto y = Eigen::VectorXd(Parametrization::kLabelsNumber);

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <ostream>
+#include <string_view>
 #include <vector>
 
 // clang-format off
@@ -16,6 +18,7 @@ class IData {
  public:
   virtual const Eigen::VectorXd& GetX() const = 0;
   virtual const Eigen::VectorXd& GetY() const = 0;
+  virtual std::string_view ToString() const = 0;
 };
 
 class IDataSupplier {
@@ -31,7 +34,7 @@ class IDataSupplier {
 
 struct Symbol final {
   Eigen::VectorXd scan;  // развёртка
-  wchar_t label;
+  std::string label;
 };
 
 class Data final : public IData {
@@ -45,7 +48,10 @@ class Data final : public IData {
 
   const Eigen::VectorXd& GetX() const override { return x_->scan; }
   const Eigen::VectorXd& GetY() const override { return *y_; }
+  std::string_view ToString() const override { return x_->label; }
 };
+
+std::ostream& operator<<(std::ostream& os, const Data& data);
 
 class DataSupplier final : public IDataSupplier {
   struct Parametrization;

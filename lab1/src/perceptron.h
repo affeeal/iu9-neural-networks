@@ -3,8 +3,10 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <random>
 #include <stdexcept>
 #include <vector>
@@ -27,61 +29,15 @@ class Perceptron final {
   Perceptron(
       std::unique_ptr<ICostFunction>&& cost_function,
       std::vector<std::unique_ptr<IActivationFunction>>&& activation_functions,
-      const std::vector<std::size_t>& layers_sizes)
-      : cost_function_(std::move(cost_function)),
-        layers_number_(layers_sizes.size()),
-        connections_number_(layers_number_ - 1),
-        activation_functions_(std::move(activation_functions)) {
-    if (layers_number_ < 2) {
-      throw std::runtime_error("Perceptron must have at least two layers");
-    }
+      const std::vector<std::size_t>& layers_sizes);
 
-    if (activation_functions_.size() != connections_number_) {
-      throw std::runtime_error(
-          "Activation functions number must be equal to layers number minus "
-          "one");
-    }
-
-    weights_.reserve(connections_number_);
-    biases_.reserve(connections_number_);
-    for (std::size_t i = 0; i < connections_number_; ++i) {
-      weights_.push_back(
-          Eigen::MatrixXd::Random(layers_sizes[i + 1], layers_sizes[i]));
-      biases_.push_back(Eigen::VectorXd::Random(layers_sizes[i + 1]));
-    }
-  }
-
-  Eigen::VectorXd Feedforward(const Eigen::VectorXd& x) const {
-    auto activation = x;
-    for (std::size_t i = 0; i < connections_number_; ++i) {
-      activation = activation_functions_[i]->Apply(weights_[i] * activation +
-                                                   biases_[i]);
-    }
-    return activation;
-  }
+  Eigen::VectorXd Feedforward(const Eigen::VectorXd& x) const;
 
   void StochasticGradientSearch(
-      const std::vector<std::shared_ptr<IData>>& training,
+      const std::vector<std::shared_ptr<const IData>>& training,
       const std::size_t epochs, const std::size_t mini_batch_size,
-      const double eta) {
-    const std::size_t training_size = training.size();
-    const std::size_t whole_mini_batches = training_size / mini_batch_size;
-    const std::size_t remainder_mini_batch_size =
-        training_size % mini_batch_size;
-
-    auto training_shuffled = std::vector(training.begin(), training.end());
-    for (std::size_t i = 0; i < epochs; ++i) {
-      std::shuffle(training_shuffled.begin(), training_shuffled.end(),
-                   generator_);
-      auto it = training_shuffled.begin();
-      for (std::size_t i = 0; i < whole_mini_batches; ++i) {
-        auto end = it + mini_batch_size;
-        UpdateMiniBatch(it, end, mini_batch_size, eta);
-        it = std::move(end);
-      }
-      UpdateMiniBatch(it, it + remainder_mini_batch_size, mini_batch_size, eta);
-    }
-  }
+      const double eta,
+      const std::vector<std::shared_ptr<const IData>>& testing);
 
  private:
   template <typename Iter>
@@ -91,19 +47,23 @@ class Perceptron final {
     auto nabla_weights = std::vector<Eigen::MatrixXd>{};
     nabla_weights.reserve(connections_number_);
     for (auto&& w : weights_) {
+      // std::cout << w << std::endl;
       nabla_weights.push_back(Eigen::MatrixXd::Zero(w.rows(), w.cols()));
     }
+    // std::cout << nabla_weights.back() << std::endl;
 
     auto nabla_biases = std::vector<Eigen::VectorXd>{};
     nabla_biases.reserve(connections_number_);
     for (auto&& b : biases_) {
       nabla_biases.push_back(Eigen::VectorXd::Zero(b.size()));
     }
+    // std::cout << nabla_biases.back();
 
     for (auto it = mini_batch_begin; it != mini_batch_end; ++it) {
       const auto& data = **it;
       const auto [nabla_weights_part, nabla_biases_part] =
           Backpropagation(data.GetX(), data.GetY());
+      // std::cout << '?' << '\n';
       for (std::size_t i = 0; i < connections_number_; ++i) {
         nabla_weights[i] += nabla_weights_part[i];
         nabla_biases[i] += nabla_biases_part[i];
@@ -119,7 +79,8 @@ class Perceptron final {
 
   std::pair<std::vector<Eigen::MatrixXd>, std::vector<Eigen::VectorXd>>
   Backpropagation(const Eigen::VectorXd& x, const Eigen::VectorXd& y) {
-    const auto [zs, activations] = Feedforward(x);
+    const auto [zs, activations] = FeedforwardStage(x);
+    // std::cout << '?' << '\n';
     assert(zs.size() == connections_number_);
     assert(activations.size() == layers_number_);
 
@@ -152,22 +113,30 @@ class Perceptron final {
   }
 
   std::pair<std::vector<Eigen::VectorXd>, std::vector<Eigen::VectorXd>>
-  Feedforward(const Eigen::VectorXd& x) {
+  FeedforwardStage(const Eigen::VectorXd& x) {
+    // std::cout << "?\n";
+    // std::cout << x << '\n';
     std::vector<Eigen::VectorXd> zs, activations;
     zs.reserve(connections_number_);
     activations.reserve(layers_number_);
 
     auto activation = x;
     for (std::size_t i = 0; i < connections_number_; ++i) {
-      auto z = weights_[i] * activation + biases_[i];
+      auto z =
+          static_cast<Eigen::VectorXd>(weights_[i] * activation + biases_[i]);
       activations.push_back(std::move(activation));
+      // std::cout << &activation_functions_[i] << '\n';
       activation = activation_functions_[i]->Apply(z);
+      // std::cout << "?\n";
       zs.push_back(std::move(z));
     }
     activations.push_back(std::move(activation));
 
     return {zs, activations};
   }
+
+  std::size_t Evaluate(
+      const std::vector<std::shared_ptr<const IData>>& testing);
 };
 
 }  // namespace lab1
