@@ -17,13 +17,12 @@ class IActivationFunction {
 class Sigmoid final : public IActivationFunction {
  public:
   Eigen::VectorXd Apply(const Eigen::VectorXd& z) override {
-    // std::cout << "?\n";
-    return 1.0 / (1.0 + z.array().inverse().exp());
+    return 1.0 / (1.0 + (-z).array().exp());
   }
 
   Eigen::VectorXd Prime(const Eigen::VectorXd& z) override {
-    // std::cout << "???\n";
-    return Apply(z).array() * (1 - Apply(z).array());
+    const auto activation = Apply(z);
+    return activation.array() * (1 - activation.array());
   }
 };
 

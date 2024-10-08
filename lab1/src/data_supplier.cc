@@ -1,7 +1,10 @@
 #include "data_supplier.h"
 
+#include <spdlog/common.h>
+
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <random>
 
 #include "util.h"
@@ -156,27 +159,10 @@ const std::array kSymbolModifiers{
 
 }  // namespace
 
-constexpr std::size_t kRows = 5;
-constexpr std::size_t kColumns = 4;
-
-std::ostream& operator<<(std::ostream& os, const Data& data) {
-  os << "Label: " << data.ToString() << '\n';
-  os << "Scan:\n";
-  const auto& x = data.GetX();
-  for (std::size_t i = 0; i < kRows; ++i) {
-    for (std::size_t j = 0; j < kColumns; ++j) {
-      os << x(i * kColumns + j) << ' ';
-    }
-    os << '\n';
-  }
-  os << "Y:\n" << data.GetY() << '\n';
-  return os;
-}
-
 struct DataSupplier::Parametrization final {
   static constexpr double kTrainingRatio = 0.7;
-  static constexpr double kValidationRatio = 0.1;
-  static constexpr double kTestingRatio = 0.2;
+  static constexpr double kValidationRatio = 0.15;
+  static constexpr double kTestingRatio = 0.15;
   static constexpr std::array kLabels{"0", "1", "2", "3", "4",
                                       "5", "6", "7", "8", "9"};
   static constexpr std::size_t kLabelsNumber = kLabels.size();
@@ -202,6 +188,12 @@ struct DataSupplier::Parametrization final {
 const DataSupplier::Parametrization& DataSupplier::kParametrization =
     DataSupplier::Parametrization::GetInstance();
 
+constexpr double kEpsilon = 10e-6;
+
+bool AreEqual(const double x, const double y, const double epsion) {
+  return std::abs(x - y) < epsion;
+}
+
 DataSupplier::Parametrization::Parametrization() {
   const auto pixel_reverser = PixelReverser{};
   for (auto&& symbol_modifier : kSymbolModifiers) {
@@ -219,7 +211,7 @@ DataSupplier::Parametrization::Parametrization() {
          }) {
       double part_size;
       error += std::modf(modifications_size * ratio, &part_size);
-      if (error >= 1) {
+      if (AreEqual(error, 1, kEpsilon)) {
         --error;
         ++part_size;
       }

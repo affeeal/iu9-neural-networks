@@ -51,8 +51,6 @@ class Data final : public IData {
   std::string_view ToString() const override { return x_->label; }
 };
 
-std::ostream& operator<<(std::ostream& os, const Data& data);
-
 class DataSupplier final : public IDataSupplier {
   struct Parametrization;
 

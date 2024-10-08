@@ -7,9 +7,9 @@
 
 namespace {
 
-constexpr std::size_t kEpochs = 100;
-constexpr double kEta = 0.01;
-constexpr std::size_t kMiniBatchSize = 5;
+constexpr std::size_t kEpochs = 200;
+constexpr double kEta = 1;
+constexpr std::size_t kMiniBatchSize = 1;
 
 }  // namespace
 
@@ -29,5 +29,5 @@ int main(int argc, char* argv[]) {
   auto perceptron = lab1::Perceptron(
       std::move(cost_function), std::move(activation_functions), layers_sizes);
   perceptron.StochasticGradientSearch(training, kEpochs, kMiniBatchSize, kEta,
-                                      testing);
+                                      validation);
 }
