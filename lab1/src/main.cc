@@ -8,7 +8,7 @@
 namespace {
 
 constexpr std::size_t kEpochs = 200;
-constexpr double kEta = 1;
+constexpr double kEta = 0.5;
 constexpr std::size_t kMiniBatchSize = 1;
 
 }  // namespace
@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
   auto activation_functions =
       std::vector<std::unique_ptr<lab1::IActivationFunction>>{};
   activation_functions.push_back(std::make_unique<lab1::Sigmoid>());
-  const auto layers_sizes = std::vector<std::size_t>{20, 10};
+  const auto layers_sizes = std::vector<std::size_t>{lab1::kScanSize, 20};
 
   auto perceptron = lab1::Perceptron(
       std::move(cost_function), std::move(activation_functions), layers_sizes);

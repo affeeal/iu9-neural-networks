@@ -26,4 +26,17 @@ class Sigmoid final : public IActivationFunction {
   }
 };
 
+/*
+class Softmax final : public IActivationFunction {
+ public:
+  Eigen::VectorXd Apply(const Eigen::VectorXd& z) override {
+    // TODO
+  }
+
+  Eigen::VectorXd Prime(const Eigen::VectorXd& z) override {
+    // TODO
+  }
+};
+*/
+
 }  // namespace lab1

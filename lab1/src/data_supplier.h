@@ -11,6 +11,8 @@
 
 namespace lab1 {
 
+constexpr std::size_t kScanSize = 20;
+
 class IData {
  public:
   virtual ~IData() = default;

@@ -62,8 +62,6 @@ class SymbolModifier final {
   }
 };
 
-constexpr std::size_t kScanSize = 20;
-
 const std::array kSymbolModifiers{
     SymbolModifier{{Eigen::Vector<double, kScanSize>{
                         1, 1, 1, 1,  //
@@ -155,16 +153,107 @@ const std::array kSymbolModifiers{
                     },
                     "9"},
                    {0, 3, 8, 19}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        0, 1, 1, 0,  //
+                        1, 0, 0, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 1,  //
+                    },
+                    "А"},
+                   {4, 5, 6, 7}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 0,  //
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 0,  //
+                        1, 1, 1, 1,  //
+                    },
+                    "Е"},
+                   {0, 8, 11, 16}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        1, 0, 0, 1,  //
+                        1, 0, 1, 0,  //
+                        1, 1, 0, 0,  //
+                        1, 0, 1, 0,  //
+                        1, 0, 0, 1,  //
+                    },
+                    "К"},
+                   {0, 3, 16, 19}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        1, 0, 0, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 0, 0, 1,  //
+                    },
+                    "Н"},
+                   {0, 3, 16, 19}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 0, 0, 1,  //
+                    },
+                    "П"},
+                   {0, 3, 16, 19}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 0,  //
+                        1, 0, 0, 0,  //
+                    },
+                    "Р"},
+                   {0, 3, 11, 16}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 0,  //
+                        1, 0, 0, 0,  //
+                        1, 0, 0, 0,  //
+                        1, 1, 1, 1,  //
+                    },
+                    "С"},
+                   {0, 3, 16, 19}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        1, 0, 0, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 1, 1, 1,  //
+                        0, 0, 0, 1,  //
+                        1, 1, 1, 1,  //
+                    },
+                    "У"},
+                   {0, 3, 8, 19}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        1, 0, 0, 0,  //
+                        1, 0, 0, 0,  //
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 1, 1, 1,  //
+                    },
+                    "Ь"},
+                   {0, 11, 16, 19}},
+    SymbolModifier{{Eigen::Vector<double, kScanSize>{
+                        1, 1, 1, 1,  //
+                        1, 0, 0, 1,  //
+                        1, 1, 1, 1,  //
+                        0, 1, 0, 1,  //
+                        1, 0, 0, 1,  //
+                    },
+                    "Я"},
+                   {0, 3, 8, 14}},
 };
 
 }  // namespace
 
 struct DataSupplier::Parametrization final {
-  static constexpr double kTrainingRatio = 0.7;
-  static constexpr double kValidationRatio = 0.15;
-  static constexpr double kTestingRatio = 0.15;
-  static constexpr std::array kLabels{"0", "1", "2", "3", "4",
-                                      "5", "6", "7", "8", "9"};
+  static constexpr double kTrainingRatio = 0.5;
+  static constexpr double kValidationRatio = 0.2;
+  static constexpr double kTestingRatio = 0.3;
+  static constexpr std::array kLabels{"0", "1", "2", "3", "4", "5", "6",
+                                      "7", "8", "9", "А", "Е", "К", "Н",
+                                      "П", "Р", "С", "У", "Ь", "Я"};
   static constexpr std::size_t kLabelsNumber = kLabels.size();
 
   std::vector<std::shared_ptr<const Symbol>> training;
