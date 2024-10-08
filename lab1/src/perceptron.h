@@ -17,6 +17,21 @@
 
 namespace lab1 {
 
+struct Parametrization final {
+  std::size_t epochs;
+  std::size_t mini_batch_size;
+  double eta;
+  bool monitor_training_cost;
+  bool monitor_training_accuracy;
+  bool monitor_testing_cost;
+  bool monitor_testing_accuracy;
+};
+
+struct Metric final {
+  std::vector<double> training_cost, training_accuracy;
+  std::vector<double> testing_cost, testing_accuracy;
+};
+
 class Perceptron final {
   std::default_random_engine generator_;
   std::unique_ptr<ICostFunction> cost_function_;
@@ -33,13 +48,19 @@ class Perceptron final {
 
   Eigen::VectorXd Feedforward(const Eigen::VectorXd& x) const;
 
-  void StochasticGradientSearch(
+  Metric StochasticGradientSearch(
       const std::vector<std::shared_ptr<const IData>>& training,
-      const std::size_t epochs, const std::size_t mini_batch_size,
-      const double eta,
-      const std::vector<std::shared_ptr<const IData>>& testing);
+      const std::vector<std::shared_ptr<const IData>>& testing,
+      const Parametrization parametrization);
 
  private:
+  Metric GetMetric(const Parametrization& param) const;
+
+  void WriteMetric(Metric& metric, const std::size_t epoch,
+                   const std::vector<std::shared_ptr<const IData>>& training,
+                   const std::vector<std::shared_ptr<const IData>>& testing,
+                   const Parametrization& param) const;
+
   template <typename Iter>
   void UpdateMiniBatch(const Iter mini_batch_begin, const Iter mini_batch_end,
                        const std::size_t mini_batch_size, const double eta);
@@ -48,10 +69,13 @@ class Perceptron final {
   Backpropagation(const Eigen::VectorXd& x, const Eigen::VectorXd& y);
 
   std::pair<std::vector<Eigen::VectorXd>, std::vector<Eigen::VectorXd>>
-  FeedforwardPass(const Eigen::VectorXd& x);
+  FeedforwardDetailed(const Eigen::VectorXd& x);
 
-  std::size_t Evaluate(
-      const std::vector<std::shared_ptr<const IData>>& testing);
+  template <typename Iter>
+  std::size_t Accuracy(const Iter begin, const Iter end) const;
+
+  template <typename Iter>
+  double Cost(const Iter begin, const Iter end) const;
 };
 
 }  // namespace lab1

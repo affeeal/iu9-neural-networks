@@ -19,7 +19,7 @@ class ICostFunction {
 
 class MSE final : public ICostFunction {
   double Apply(const Eigen::VectorXd& y, const Eigen::VectorXd& a) override {
-    return 0.5 * std::pow((y - a).norm(), 2);
+    return 0.5 * (y - a).squaredNorm();
   }
 
   Eigen::VectorXd ActivationsPrime(const Eigen::VectorXd& y,

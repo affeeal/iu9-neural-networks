@@ -1,4 +1,7 @@
+#include <spdlog/spdlog.h>
+
 #include <iterator>
+#include <strstream>
 
 #include "perceptron.h"
 
@@ -40,31 +43,80 @@ Eigen::VectorXd Perceptron::Feedforward(const Eigen::VectorXd& x) const {
   return activation;
 }
 
-void Perceptron::StochasticGradientSearch(
+Metric Perceptron::StochasticGradientSearch(
     const std::vector<std::shared_ptr<const IData>>& training,
-    const std::size_t epochs, const std::size_t mini_batch_size,
-    const double eta,
-    const std::vector<std::shared_ptr<const IData>>& testing) {
+    const std::vector<std::shared_ptr<const IData>>& testing,
+    const Parametrization param) {
   const std::size_t training_size = training.size();
-  const std::size_t whole_mini_batches = training_size / mini_batch_size;
-  const std::size_t remainder_mini_batch_size = training_size % mini_batch_size;
-  const std::size_t testing_size = testing.size();
-
+  const std::size_t whole_mini_batches_number =
+      training_size / param.mini_batch_size;
+  const std::size_t remainder_mini_batch_size =
+      training_size % param.mini_batch_size;
   auto training_shuffled = std::vector(training.begin(), training.end());
-
-  for (std::size_t i = 0; i < epochs; ++i) {
+  auto metric = GetMetric(param);
+  for (std::size_t i = 0; i < param.epochs; ++i) {
     std::shuffle(training_shuffled.begin(), training_shuffled.end(),
                  generator_);
     auto it = training_shuffled.begin();
-    for (std::size_t i = 0; i < whole_mini_batches; ++i) {
-      auto end = it + mini_batch_size;
-      UpdateMiniBatch(it, end, mini_batch_size, eta);
+    for (std::size_t i = 0; i < whole_mini_batches_number; ++i) {
+      auto end = it + param.mini_batch_size;
+      UpdateMiniBatch(it, end, param.mini_batch_size, param.eta);
       it = std::move(end);
     }
-    UpdateMiniBatch(it, it + remainder_mini_batch_size, mini_batch_size, eta);
-    std::cout << "Epoch " << i << ": " << Evaluate(testing) << "/"
-              << testing_size << '\n';
+    UpdateMiniBatch(it, it + remainder_mini_batch_size, param.mini_batch_size,
+                    param.eta);
+    WriteMetric(metric, i, training, testing, param);
   }
+  return metric;
+}
+
+void Perceptron::WriteMetric(
+    Metric& metric, const std::size_t epoch,
+    const std::vector<std::shared_ptr<const IData>>& training,
+    const std::vector<std::shared_ptr<const IData>>& testing,
+    const Parametrization& param) const {
+  std::ostrstream oss;
+  oss << "Epoch " << epoch << ";";
+  if (param.monitor_training_cost) {
+    const auto training_cost = Cost(training.begin(), training.end());
+    metric.training_cost.push_back(training_cost);
+    oss << " training cost: " << training_cost << ";";
+  }
+  if (param.monitor_training_accuracy) {
+    const auto training_accuracy = Accuracy(training.begin(), training.end());
+    metric.training_accuracy.push_back(training_accuracy);
+    oss << " training accuracy: " << training_accuracy << "/" << training.size()
+        << ";";
+  }
+  if (param.monitor_testing_cost) {
+    const auto testing_cost = Cost(testing.begin(), testing.end());
+    metric.testing_cost.push_back(Cost(testing.begin(), testing.end()));
+    oss << " testing cost: " << testing_cost << ";";
+  }
+  if (param.monitor_testing_accuracy) {
+    const auto testing_accuracy = Accuracy(testing.begin(), testing.end());
+    metric.testing_accuracy.push_back(testing_accuracy);
+    oss << " testing accuracy: " << testing_accuracy << "/" << testing.size()
+        << ";";
+  }
+  spdlog::info(oss.str());
+}
+
+Metric Perceptron::GetMetric(const Parametrization& param) const {
+  auto metric = Metric{};
+  if (param.monitor_training_cost) {
+    metric.training_cost.reserve(param.epochs);
+  }
+  if (param.monitor_training_accuracy) {
+    metric.training_accuracy.reserve(param.epochs);
+  }
+  if (param.monitor_testing_cost) {
+    metric.testing_cost.reserve(param.epochs);
+  }
+  if (param.monitor_testing_accuracy) {
+    metric.testing_accuracy.reserve(param.epochs);
+  }
+  return metric;
 }
 
 template <typename Iter>
@@ -104,7 +156,7 @@ void Perceptron::UpdateMiniBatch(const Iter mini_batch_begin,
 std::pair<std::vector<Eigen::MatrixXd>, std::vector<Eigen::VectorXd>>
 Perceptron::Backpropagation(const Eigen::VectorXd& x,
                             const Eigen::VectorXd& y) {
-  const auto [zs, activations] = FeedforwardPass(x);
+  const auto [zs, activations] = FeedforwardDetailed(x);
   assert(zs.size() == connections_number_);
   assert(activations.size() == layers_number_);
 
@@ -135,7 +187,7 @@ Perceptron::Backpropagation(const Eigen::VectorXd& x,
 }
 
 std::pair<std::vector<Eigen::VectorXd>, std::vector<Eigen::VectorXd>>
-Perceptron::FeedforwardPass(const Eigen::VectorXd& x) {
+Perceptron::FeedforwardDetailed(const Eigen::VectorXd& x) {
   std::vector<Eigen::VectorXd> zs, activations;
   zs.reserve(connections_number_);
   activations.reserve(layers_number_);
@@ -153,18 +205,31 @@ Perceptron::FeedforwardPass(const Eigen::VectorXd& x) {
   return {zs, activations};
 }
 
-std::size_t Perceptron::Evaluate(
-    const std::vector<std::shared_ptr<const IData>>& data) {
+template <typename Iter>
+std::size_t Perceptron::Accuracy(const Iter begin, const Iter end) const {
   std::size_t right_predictions = 0;
-  for (auto&& instance : data) {
-    Eigen::Index max_expected, max_actual;
-    instance->GetY().maxCoeff(&max_expected);
-    Feedforward(instance->GetX()).maxCoeff(&max_actual);
-    if (max_expected == max_actual) {
+  for (auto it = begin; it != end; ++it) {
+    const IData& instance = **it;
+    Eigen::Index max_activation_expected, max_activation_actual;
+    instance.GetY().maxCoeff(&max_activation_expected);
+    Feedforward(instance.GetX()).maxCoeff(&max_activation_actual);
+    if (max_activation_expected == max_activation_actual) {
       ++right_predictions;
     }
   }
   return right_predictions;
+}
+
+template <typename Iter>
+double Perceptron::Cost(const Iter begin, const Iter end) const {
+  double cost = 0;
+  std::size_t instances_count = 0;
+  for (auto it = begin; it != end; ++it, ++instances_count) {
+    const IData& instance = **it;
+    const auto activation = Feedforward(instance.GetX());
+    cost += cost_function_->Apply(instance.GetY(), activation);
+  }
+  return cost / instances_count;
 }
 
 }  // namespace lab1
