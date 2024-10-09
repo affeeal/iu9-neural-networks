@@ -21,6 +21,7 @@ constexpr auto kParam = lab1::Parametrization{
     .monitor_testing_cost = true,
     .monitor_testing_accuracy = true,
 };
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
