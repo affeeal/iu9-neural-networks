@@ -1,9 +1,10 @@
 #pragma once
 
+// clang-format off
 #include <Eigen/Dense>
-#include <iostream>
+// clang-format on
 
-namespace lab1 {
+namespace nn {
 
 class IActivationFunction {
  public:
@@ -11,7 +12,7 @@ class IActivationFunction {
 
  public:
   virtual Eigen::VectorXd Apply(const Eigen::VectorXd& z) = 0;
-  virtual Eigen::VectorXd Prime(const Eigen::VectorXd& z) = 0;
+  virtual Eigen::MatrixXd Jacobian(const Eigen::VectorXd& z) = 0;
 };
 
 class Sigmoid final : public IActivationFunction {
@@ -20,36 +21,36 @@ class Sigmoid final : public IActivationFunction {
     return 1.0 / (1.0 + (-z).array().exp());
   }
 
-  Eigen::VectorXd Prime(const Eigen::VectorXd& z) override {
-    const auto activation = Apply(z);
-    return activation.array() * (1 - activation.array());
+  Eigen::MatrixXd Jacobian(const Eigen::VectorXd& z) override {
+    const auto sigmoid = Apply(z);
+    return static_cast<Eigen::VectorXd>(sigmoid.array() * (1 - sigmoid.array())).asDiagonal();
   }
 };
 
 class Tanh final : public IActivationFunction {
   Eigen::VectorXd Apply(const Eigen::VectorXd& z) override {
     const auto e_z = z.array().exp();
-    const auto e_minus_z = (-z).array().exp();
-    return (e_z - e_minus_z) / (e_z + e_minus_z);
+    const auto e_neg_z = (-z).array().exp();
+    return (e_z - e_neg_z) / (e_z + e_neg_z);
   }
 
-  Eigen::VectorXd Prime(const Eigen::VectorXd& z) override {
+  Eigen::MatrixXd Jacobian(const Eigen::VectorXd& z) override {
     const auto tanh = Apply(z);
-    return 1 - tanh.array().square();
+    return static_cast<Eigen::VectorXd>(1 - tanh.array().square()).asDiagonal();
   }
 };
 
-/*
 class Softmax final : public IActivationFunction {
  public:
   Eigen::VectorXd Apply(const Eigen::VectorXd& z) override {
-    // TODO
+    const auto e_z = z.array().exp();
+    return e_z / e_z.sum();
   }
 
-  Eigen::VectorXd Prime(const Eigen::VectorXd& z) override {
-    // TODO
+  Eigen::MatrixXd Jacobian(const Eigen::VectorXd& z) override {
+    const auto softmax = Apply(z);
+    return static_cast<Eigen::MatrixXd>(softmax.asDiagonal()) - softmax * softmax.transpose();
   }
 };
-*/
 
-}  // namespace lab1
+}  // namespace nn

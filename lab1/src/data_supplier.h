@@ -9,9 +9,10 @@
 #include <Eigen/Dense>
 // clang-format on
 
-namespace lab1 {
+namespace nn {
 
 constexpr std::size_t kScanSize = 20;
+constexpr std::size_t kClassesCount = 20;
 
 class IData {
  public:
@@ -78,4 +79,4 @@ class DataSupplier final : public IDataSupplier {
   }
 };
 
-}  // namespace lab1
+}  // namespace nn

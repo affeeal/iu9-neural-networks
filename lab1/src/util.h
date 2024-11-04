@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-namespace lab1 {
+namespace nn {
 
 template <typename T>
 std::vector<std::vector<T>> GeneratePowerset(const std::vector<T>& set) {
@@ -28,4 +28,4 @@ std::vector<std::vector<T>> GeneratePowerset(const std::vector<T>& set) {
   return powerset;
 }
 
-}  // namespace lab1
+}  // namespace nn

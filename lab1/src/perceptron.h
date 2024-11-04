@@ -1,23 +1,18 @@
 #pragma once
 
-#include <Eigen/Dense>
-#include <cmath>
-#include <functional>
-#include <iostream>
-#include <iterator>
-#include <memory>
-#include <optional>
 #include <random>
-#include <stdexcept>
-#include <vector>
+
+// clang-format off
+#include <Eigen/Dense>
+// clang-format on
 
 #include "activation_function.h"
 #include "cost_function.h"
 #include "data_supplier.h"
 
-namespace lab1 {
+namespace nn {
 
-struct Parametrization final {
+struct Config final {
   std::size_t epochs;
   std::size_t mini_batch_size;
   double eta;
@@ -51,16 +46,9 @@ class Perceptron final {
   Metric StochasticGradientSearch(
       const std::vector<std::shared_ptr<const IData>>& training,
       const std::vector<std::shared_ptr<const IData>>& testing,
-      const Parametrization parametrization);
+      const Config cfg);
 
  private:
-  Metric GetMetric(const Parametrization& param) const;
-
-  void WriteMetric(Metric& metric, const std::size_t epoch,
-                   const std::vector<std::shared_ptr<const IData>>& training,
-                   const std::vector<std::shared_ptr<const IData>>& testing,
-                   const Parametrization& param) const;
-
   template <typename Iter>
   void UpdateMiniBatch(const Iter mini_batch_begin, const Iter mini_batch_end,
                        const std::size_t mini_batch_size, const double eta);
@@ -71,6 +59,13 @@ class Perceptron final {
   std::pair<std::vector<Eigen::VectorXd>, std::vector<Eigen::VectorXd>>
   FeedforwardDetailed(const Eigen::VectorXd& x);
 
+  Metric GetMetric(const Config& param) const;
+
+  void WriteMetric(Metric& metric, const std::size_t epoch,
+                   const std::vector<std::shared_ptr<const IData>>& training,
+                   const std::vector<std::shared_ptr<const IData>>& testing,
+                   const Config& param) const;
+
   template <typename Iter>
   std::size_t Accuracy(const Iter begin, const Iter end) const;
 
@@ -78,4 +73,4 @@ class Perceptron final {
   double Cost(const Iter begin, const Iter end) const;
 };
 
-}  // namespace lab1
+}  // namespace nn

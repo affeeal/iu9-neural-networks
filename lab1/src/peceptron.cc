@@ -1,11 +1,15 @@
-#include <spdlog/spdlog.h>
-
+#include <cassert>
+#include <iostream>
 #include <iterator>
-#include <strstream>
+#include <sstream>
+
+// clang-format off
+#include <spdlog/spdlog.h>
+// clang-format on
 
 #include "perceptron.h"
 
-namespace lab1 {
+namespace nn {
 
 Perceptron::Perceptron(
     std::unique_ptr<ICostFunction>&& cost_function,
@@ -46,75 +50,25 @@ Eigen::VectorXd Perceptron::Feedforward(const Eigen::VectorXd& x) const {
 Metric Perceptron::StochasticGradientSearch(
     const std::vector<std::shared_ptr<const IData>>& training,
     const std::vector<std::shared_ptr<const IData>>& testing,
-    const Parametrization param) {
-  const std::size_t training_size = training.size();
-  const std::size_t whole_mini_batches_number =
-      training_size / param.mini_batch_size;
-  const std::size_t remainder_mini_batch_size =
-      training_size % param.mini_batch_size;
+    const Config cfg) {
+  const auto training_size = training.size();
+  const auto whole_mini_batches_number = training_size / cfg.mini_batch_size;
+  const auto remainder_mini_batch_size = training_size % cfg.mini_batch_size;
+
   auto training_shuffled = std::vector(training.begin(), training.end());
-  auto metric = GetMetric(param);
-  for (std::size_t i = 0; i < param.epochs; ++i) {
+  auto metric = GetMetric(cfg);
+  for (std::size_t i = 0; i < cfg.epochs; ++i) {
     std::shuffle(training_shuffled.begin(), training_shuffled.end(),
                  generator_);
     auto it = training_shuffled.begin();
     for (std::size_t i = 0; i < whole_mini_batches_number; ++i) {
-      auto end = it + param.mini_batch_size;
-      UpdateMiniBatch(it, end, param.mini_batch_size, param.eta);
+      auto end = it + cfg.mini_batch_size;
+      UpdateMiniBatch(it, end, cfg.mini_batch_size, cfg.eta);
       it = std::move(end);
     }
-    UpdateMiniBatch(it, it + remainder_mini_batch_size, param.mini_batch_size,
-                    param.eta);
-    WriteMetric(metric, i, training, testing, param);
-  }
-  return metric;
-}
-
-void Perceptron::WriteMetric(
-    Metric& metric, const std::size_t epoch,
-    const std::vector<std::shared_ptr<const IData>>& training,
-    const std::vector<std::shared_ptr<const IData>>& testing,
-    const Parametrization& param) const {
-  std::ostrstream oss;
-  oss << "Epoch " << epoch << ";";
-  if (param.monitor_training_cost) {
-    const auto training_cost = Cost(training.begin(), training.end());
-    metric.training_cost.push_back(training_cost);
-    oss << " training cost: " << training_cost << ";";
-  }
-  if (param.monitor_training_accuracy) {
-    const auto training_accuracy = Accuracy(training.begin(), training.end());
-    metric.training_accuracy.push_back(training_accuracy);
-    oss << " training accuracy: " << training_accuracy << "/" << training.size()
-        << ";";
-  }
-  if (param.monitor_testing_cost) {
-    const auto testing_cost = Cost(testing.begin(), testing.end());
-    metric.testing_cost.push_back(Cost(testing.begin(), testing.end()));
-    oss << " testing cost: " << testing_cost << ";";
-  }
-  if (param.monitor_testing_accuracy) {
-    const auto testing_accuracy = Accuracy(testing.begin(), testing.end());
-    metric.testing_accuracy.push_back(testing_accuracy);
-    oss << " testing accuracy: " << testing_accuracy << "/" << testing.size()
-        << ";";
-  }
-  spdlog::info(oss.str());
-}
-
-Metric Perceptron::GetMetric(const Parametrization& param) const {
-  auto metric = Metric{};
-  if (param.monitor_training_cost) {
-    metric.training_cost.reserve(param.epochs);
-  }
-  if (param.monitor_training_accuracy) {
-    metric.training_accuracy.reserve(param.epochs);
-  }
-  if (param.monitor_testing_cost) {
-    metric.testing_cost.reserve(param.epochs);
-  }
-  if (param.monitor_testing_accuracy) {
-    metric.testing_accuracy.reserve(param.epochs);
+    UpdateMiniBatch(it, it + remainder_mini_batch_size, cfg.mini_batch_size,
+                    cfg.eta);
+    WriteMetric(metric, i, training, testing, cfg);
   }
   return metric;
 }
@@ -161,8 +115,8 @@ Perceptron::Backpropagation(const Eigen::VectorXd& x,
   assert(activations.size() == layers_number_);
 
   auto delta = static_cast<Eigen::VectorXd>(
-      cost_function_->ActivationsPrime(y, activations.back()).array() *
-      activation_functions_.back()->Prime(zs.back()).array());
+      activation_functions_.back()->Jacobian(zs.back()).transpose() *
+      cost_function_->GradientWrtActivations(y, activations.back()));
 
   auto nabla_weights_reversed = std::vector<Eigen::MatrixXd>{};
   nabla_weights_reversed.reserve(connections_number_);
@@ -174,8 +128,9 @@ Perceptron::Backpropagation(const Eigen::VectorXd& x,
   nabla_biases_reversed.push_back(delta);
 
   for (int i = connections_number_ - 2; i >= 0; --i) {
-    delta = (weights_[i + 1].transpose() * delta).array() *
-            activation_functions_[i]->Prime(zs[i]).array();
+    delta = (weights_[i + 1] * activation_functions_[i]->Jacobian(zs[i]))
+                .transpose() *
+            delta;
     nabla_weights_reversed.push_back(delta * activations[i].transpose());
     nabla_biases_reversed.push_back(delta);
   }
@@ -205,6 +160,55 @@ Perceptron::FeedforwardDetailed(const Eigen::VectorXd& x) {
   return {zs, activations};
 }
 
+Metric Perceptron::GetMetric(const Config& param) const {
+  auto metric = Metric{};
+  if (param.monitor_training_cost) {
+    metric.training_cost.reserve(param.epochs);
+  }
+  if (param.monitor_training_accuracy) {
+    metric.training_accuracy.reserve(param.epochs);
+  }
+  if (param.monitor_testing_cost) {
+    metric.testing_cost.reserve(param.epochs);
+  }
+  if (param.monitor_testing_accuracy) {
+    metric.testing_accuracy.reserve(param.epochs);
+  }
+  return metric;
+}
+
+void Perceptron::WriteMetric(
+    Metric& metric, const std::size_t epoch,
+    const std::vector<std::shared_ptr<const IData>>& training,
+    const std::vector<std::shared_ptr<const IData>>& testing,
+    const Config& cfg) const {
+  std::stringstream oss;
+  oss << "Epoch " << epoch << ";";
+  if (cfg.monitor_training_cost) {
+    const auto training_cost = Cost(training.begin(), training.end());
+    metric.training_cost.push_back(training_cost);
+    oss << " training cost: " << training_cost << ";";
+  }
+  if (cfg.monitor_training_accuracy) {
+    const auto training_accuracy = Accuracy(training.begin(), training.end());
+    metric.training_accuracy.push_back(training_accuracy);
+    oss << " training accuracy: " << training_accuracy << "/" << training.size()
+        << ";";
+  }
+  if (cfg.monitor_testing_cost) {
+    const auto testing_cost = Cost(testing.begin(), testing.end());
+    metric.testing_cost.push_back(Cost(testing.begin(), testing.end()));
+    oss << " testing cost: " << testing_cost << ";";
+  }
+  if (cfg.monitor_testing_accuracy) {
+    const auto testing_accuracy = Accuracy(testing.begin(), testing.end());
+    metric.testing_accuracy.push_back(testing_accuracy);
+    oss << " testing accuracy: " << testing_accuracy << "/" << testing.size()
+        << ";";
+  }
+  spdlog::info(oss.str());
+}
+
 template <typename Iter>
 std::size_t Perceptron::Accuracy(const Iter begin, const Iter end) const {
   std::size_t right_predictions = 0;
@@ -232,4 +236,4 @@ double Perceptron::Cost(const Iter begin, const Iter end) const {
   return cost / instances_count;
 }
 
-}  // namespace lab1
+}  // namespace nn

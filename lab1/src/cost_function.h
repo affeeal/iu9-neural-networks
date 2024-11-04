@@ -1,11 +1,8 @@
 #pragma once
 
-#include <Eigen/Dense>
-#include <cmath>
-
 #include "activation_function.h"
 
-namespace lab1 {
+namespace nn {
 
 class ICostFunction {
  public:
@@ -13,8 +10,8 @@ class ICostFunction {
 
  public:
   virtual double Apply(const Eigen::VectorXd& y, const Eigen::VectorXd& a) = 0;
-  virtual Eigen::VectorXd ActivationsPrime(const Eigen::VectorXd& y,
-                                           const Eigen::VectorXd& a) = 0;
+  virtual Eigen::VectorXd GradientWrtActivations(const Eigen::VectorXd& y,
+                                                 const Eigen::VectorXd& a) = 0;
 };
 
 class MSE final : public ICostFunction {
@@ -22,10 +19,21 @@ class MSE final : public ICostFunction {
     return 0.5 * (y - a).squaredNorm();
   }
 
-  Eigen::VectorXd ActivationsPrime(const Eigen::VectorXd& y,
-                                   const Eigen::VectorXd& a) override {
+  Eigen::VectorXd GradientWrtActivations(const Eigen::VectorXd& y,
+                                         const Eigen::VectorXd& a) override {
     return a - y;
   }
 };
 
-}  // namespace lab1
+class CrossEntropy final : public ICostFunction {
+  double Apply(const Eigen::VectorXd& y, const Eigen::VectorXd& a) override {
+    return -(y.array() * a.array().log()).sum();
+  }
+
+  Eigen::VectorXd GradientWrtActivations(const Eigen::VectorXd& y,
+                                         const Eigen::VectorXd& a) override {
+    return - y.array() / a.array();
+  }
+};
+
+}  // namespace nn
