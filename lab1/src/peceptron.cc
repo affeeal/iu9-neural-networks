@@ -50,7 +50,7 @@ Eigen::VectorXd Perceptron::Feedforward(const Eigen::VectorXd& x) const {
 Metric Perceptron::StochasticGradientSearch(
     const std::vector<std::shared_ptr<const IData>>& training,
     const std::vector<std::shared_ptr<const IData>>& testing,
-    const Config cfg) {
+    const Config& cfg) {
   const auto training_size = training.size();
   const auto whole_mini_batches_number = training_size / cfg.mini_batch_size;
   const auto remainder_mini_batch_size = training_size % cfg.mini_batch_size;

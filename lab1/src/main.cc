@@ -1,8 +1,6 @@
 #include <memory>
 
-// clang-format off
 #include <matplot/matplot.h>
-// clang-format on
 
 #include "activation_function.h"
 #include "cost_function.h"
@@ -14,7 +12,7 @@ namespace {
 constexpr std::size_t kEpochs = 200;
 constexpr static auto kCfg = nn::Config{
     .epochs = kEpochs,
-    .mini_batch_size = 10,
+    .mini_batch_size = 5,
     .eta = 0.5,
     .monitor_training_cost = true,
     .monitor_training_accuracy = true,
@@ -23,7 +21,7 @@ constexpr static auto kCfg = nn::Config{
 };
 
 void RunSigmoidMSE() {
-  const auto data_supplier = nn::DataSupplier(0.0, 1.0);
+  const auto data_supplier = lab1::DataSupplier(0.0, 1.0);
   const auto training = data_supplier.GetTrainingData();
   const auto testing = data_supplier.GetTestingData();
 
@@ -32,7 +30,7 @@ void RunSigmoidMSE() {
       std::vector<std::unique_ptr<nn::IActivationFunction>>{};
   activation_functions.push_back(std::make_unique<nn::Sigmoid>());
   const auto layers_sizes =
-      std::vector<std::size_t>{nn::kScanSize, nn::kClassesCount};
+      std::vector<std::size_t>{lab1::kScanSize, lab1::kClassesCount};
 
   auto perceptron = nn::Perceptron(
       std::move(cost_function), std::move(activation_functions), layers_sizes);
@@ -50,7 +48,7 @@ void RunSigmoidMSE() {
 }
 
 void RunTanhMSE() {
-  const auto data_supplier = nn::DataSupplier(-1.0, 1.0);
+  const auto data_supplier = lab1::DataSupplier(-1.0, 1.0);
   const auto training = data_supplier.GetTrainingData();
   const auto testing = data_supplier.GetTestingData();
 
@@ -59,7 +57,7 @@ void RunTanhMSE() {
       std::vector<std::unique_ptr<nn::IActivationFunction>>{};
   activation_functions.push_back(std::make_unique<nn::Tanh>());
   const auto layers_sizes =
-      std::vector<std::size_t>{nn::kScanSize, nn::kClassesCount};
+      std::vector<std::size_t>{lab1::kScanSize, lab1::kClassesCount};
 
   auto perceptron = nn::Perceptron(
       std::move(cost_function), std::move(activation_functions), layers_sizes);
@@ -68,16 +66,16 @@ void RunTanhMSE() {
 
   const auto x = matplot::linspace(0, kEpochs);
   matplot::plot(x, metrics.training_cost, x, metrics.testing_cost);
-  matplot::title("tanh + MSE training, testing cost");
+  matplot::title("Tanh + MSE training, testing cost");
   matplot::show();
 
   matplot::plot(x, metrics.training_accuracy, x, metrics.testing_accuracy);
-  matplot::title("tanh + MSE training, testing accuracy");
+  matplot::title("Tanh + MSE training, testing accuracy");
   matplot::show();
 }
 
 void RunSoftmaxCrossEntropy() {
-  const auto data_supplier = nn::DataSupplier(0.0, 1.0);
+  const auto data_supplier = lab1::DataSupplier(0.0, 1.0);
   const auto training = data_supplier.GetTrainingData();
   const auto testing = data_supplier.GetTestingData();
 
@@ -86,7 +84,7 @@ void RunSoftmaxCrossEntropy() {
       std::vector<std::unique_ptr<nn::IActivationFunction>>{};
   activation_functions.push_back(std::make_unique<nn::Softmax>());
   const auto layers_sizes =
-      std::vector<std::size_t>{nn::kScanSize, nn::kClassesCount};
+      std::vector<std::size_t>{lab1::kScanSize, lab1::kClassesCount};
 
   auto perceptron = nn::Perceptron(
       std::move(cost_function), std::move(activation_functions), layers_sizes);

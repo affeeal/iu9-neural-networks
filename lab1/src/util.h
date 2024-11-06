@@ -1,9 +1,8 @@
 #pragma once
 
-#include <iostream>
 #include <vector>
 
-namespace nn {
+namespace lab1 {
 
 template <typename T>
 std::vector<std::vector<T>> GeneratePowerset(const std::vector<T>& set) {
@@ -28,4 +27,4 @@ std::vector<std::vector<T>> GeneratePowerset(const std::vector<T>& set) {
   return powerset;
 }
 
-}  // namespace nn
+}  // namespace lab1

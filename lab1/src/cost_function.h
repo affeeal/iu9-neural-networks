@@ -1,6 +1,6 @@
 #pragma once
 
-#include "activation_function.h"
+#include <Eigen/Dense>
 
 namespace nn {
 
@@ -15,6 +15,7 @@ class ICostFunction {
 };
 
 class MSE final : public ICostFunction {
+ public:
   double Apply(const Eigen::VectorXd& y, const Eigen::VectorXd& a) override {
     return 0.5 * (y - a).squaredNorm();
   }
@@ -26,13 +27,26 @@ class MSE final : public ICostFunction {
 };
 
 class CrossEntropy final : public ICostFunction {
+ public:
   double Apply(const Eigen::VectorXd& y, const Eigen::VectorXd& a) override {
     return -(y.array() * a.array().log()).sum();
   }
 
   Eigen::VectorXd GradientWrtActivations(const Eigen::VectorXd& y,
                                          const Eigen::VectorXd& a) override {
-    return - y.array() / a.array();
+    return -y.array() / a.array();
+  }
+};
+
+class KLDivergence final : public ICostFunction {
+ public:
+  double Apply(const Eigen::VectorXd& y, const Eigen::VectorXd& a) override {
+    return (y.array() * (y.array() / a.array()).log()).sum();
+  }
+
+  Eigen::VectorXd GradientWrtActivations(const Eigen::VectorXd& y,
+                                         const Eigen::VectorXd& a) override {
+    return -y.array() / a.array();
   }
 };
 

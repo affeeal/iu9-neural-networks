@@ -1,14 +1,12 @@
 #include "data_supplier.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
-#include <random>
 
 #include "util.h"
 
-namespace nn {
+namespace lab1 {
 
 namespace {
 
@@ -346,4 +344,4 @@ DataSupplier::DataSupplier(const double low_score, const double high_score) {
   }
 }
 
-}  // namespace nn
+}  // namespace lab1
