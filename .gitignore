@@ -1,5 +1,6 @@
-build
 _minted-report
+build
 *.aux
-*.out
+*.csv
 *.log
+*.out
