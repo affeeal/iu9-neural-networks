@@ -1,13 +1,11 @@
+#include "perceptron.h"
+
+#include <spdlog/spdlog.h>
+
 #include <cassert>
 #include <iostream>
 #include <iterator>
 #include <sstream>
-
-// clang-format off
-#include <spdlog/spdlog.h>
-// clang-format on
-
-#include "perceptron.h"
 
 namespace nn {
 
@@ -15,7 +13,8 @@ Perceptron::Perceptron(
     std::unique_ptr<ICostFunction>&& cost_function,
     std::vector<std::unique_ptr<IActivationFunction>>&& activation_functions,
     const std::vector<std::size_t>& layers_sizes)
-    : cost_function_(std::move(cost_function)),
+    : generator_(device_()),
+      cost_function_(std::move(cost_function)),
       layers_number_(layers_sizes.size()),
       connections_number_(layers_number_ - 1),
       activation_functions_(std::move(activation_functions)) {
@@ -25,8 +24,7 @@ Perceptron::Perceptron(
 
   if (activation_functions_.size() != connections_number_) {
     throw std::runtime_error(
-        "Activation functions number must be equal to layers number minus "
-        "one");
+        "Activation functions number must be equal to layers number minus one");
   }
 
   weights_.reserve(connections_number_);
@@ -66,8 +64,10 @@ Metric Perceptron::StochasticGradientSearch(
       UpdateMiniBatch(it, end, cfg.mini_batch_size, cfg.eta);
       it = std::move(end);
     }
-    UpdateMiniBatch(it, it + remainder_mini_batch_size, cfg.mini_batch_size,
-                    cfg.eta);
+    if (remainder_mini_batch_size != 0) {
+      UpdateMiniBatch(it, it + remainder_mini_batch_size,
+                      remainder_mini_batch_size, cfg.eta);
+    }
     WriteMetric(metric, i, training, testing, cfg);
   }
   return metric;

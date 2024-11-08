@@ -6,7 +6,7 @@
 
 #include "util.h"
 
-namespace lab1 {
+namespace hw1 {
 
 namespace {
 
@@ -50,7 +50,6 @@ class SymbolModifier final {
         value = pixel_modifier.Modify(value);
       }
 
-      // TODO: Does emplace_back work here?
       modifications.push_back(
           std::make_shared<const Symbol>(std::move(variation)));
     }
@@ -344,4 +343,4 @@ DataSupplier::DataSupplier(const double low_score, const double high_score) {
   }
 }
 
-}  // namespace lab1
+}  // namespace hw1

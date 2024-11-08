@@ -15,9 +15,7 @@ class IActivationFunction {
 
 class Linear final : public IActivationFunction {
  public:
-  Eigen::VectorXd Apply(const Eigen::VectorXd& z) override {
-    return z;
-  }
+  Eigen::VectorXd Apply(const Eigen::VectorXd& z) override { return z; }
 
   Eigen::MatrixXd Jacobian(const Eigen::VectorXd& z) override {
     return Eigen::MatrixXd::Identity(z.rows(), z.cols());

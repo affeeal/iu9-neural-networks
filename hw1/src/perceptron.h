@@ -1,11 +1,8 @@
 #pragma once
 
-#include <random>
-#include <memory>
-
-// clang-format off
 #include <Eigen/Dense>
-// clang-format on
+#include <memory>
+#include <random>
 
 #include "activation_function.h"
 #include "cost_function.h"
@@ -49,6 +46,7 @@ struct Metric final {
 };
 
 class Perceptron final {
+  std::random_device device_;
   std::default_random_engine generator_;
   std::unique_ptr<ICostFunction> cost_function_;
   std::size_t layers_number_, connections_number_;
@@ -68,6 +66,9 @@ class Perceptron final {
       const std::vector<std::shared_ptr<const IData>>& training,
       const std::vector<std::shared_ptr<const IData>>& testing,
       const Config& cfg);
+
+  const std::vector<Eigen::MatrixXd>& get_weights() const { return weights_; }
+  const std::vector<Eigen::VectorXd>& get_biases() const { return biases_; }
 
  private:
   template <typename Iter>

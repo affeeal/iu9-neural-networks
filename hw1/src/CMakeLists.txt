@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28.3)
-project(lab1)
+project(hw1)
 
 find_package(spdlog REQUIRED)
 find_package(Matplot++ REQUIRED)

@@ -1,19 +1,18 @@
 #pragma once
 
+#include <Eigen/Dense>
 #include <memory>
 #include <vector>
 
-#include <Eigen/Dense>
-
 #include "perceptron.h"
 
-namespace lab1 {
+namespace hw1 {
 
 constexpr std::size_t kScanSize = 20;
 constexpr std::size_t kClassesCount = 20;
 
 struct Symbol final {
-  Eigen::VectorXd scan;  // развёртка
+  Eigen::VectorXd scan;
   std::string label;
 };
 
@@ -43,17 +42,20 @@ class DataSupplier final : public nn::IDataSupplier {
  public:
   DataSupplier(const double low_score, const double high_score);
 
-  std::vector<std::shared_ptr<const nn::IData>> GetTrainingData() const override {
+  std::vector<std::shared_ptr<const nn::IData>> GetTrainingData()
+      const override {
     return training_;
   }
 
-  std::vector<std::shared_ptr<const nn::IData>> GetValidationData() const override {
+  std::vector<std::shared_ptr<const nn::IData>> GetValidationData()
+      const override {
     return validation_;
   }
 
-  std::vector<std::shared_ptr<const nn::IData>> GetTestingData() const override {
+  std::vector<std::shared_ptr<const nn::IData>> GetTestingData()
+      const override {
     return testing_;
   }
 };
 
-}  // namespace lab1
+}  // namespace hw1
