@@ -152,9 +152,9 @@
 \vspace{11em}
 
 \begin{center}
-\Large {\bf Домашняя работа № 1} \\ 
+\Large {\bf Домашняя работа № 2} \\ 
 \large {\bf по курсу <<Теория искусственных нейронных сетей>>} \\
-\large <<Реализация однослойного персептрона>> 
+\large <<Разработка многослойного персептрона на основе обратного распространения ошибки FFNN>> 
 \end{center}\normalsize
 
 \vspace{8em}
@@ -188,94 +188,85 @@
 \section{Цель работы}
 
 \begin{enumerate}
-  \item Изучение многослойного персептрона, исследование его работы на основе использования градиентного спуска.
+  \item Изучение многослойного персептрона, исследование его работы на основе использования градиентного метода оптимизации и различных целевых функций.
 \end{enumerate}
 
 \section{Постановка задачи}
 
-\begin{itemize}
+\begin{enumerate}
   \item Реализовать на языке высокого уровня многослойный персептрон и проверить его работоспособность на примере данных, выбранных из MNIST dataset. 
   \item Исследовать работу персептрона на основе использования различных целевых функций (среднеквадратичная ошибка, перекрестная энтропия, дивергенция
     Кульбака-Лейблера).
   \item Провести исследование эффективности работы многослойного персептрона при изменении гиперпараметров (количества нейронов и количества слоев).
   \item Подготовить отчет с распечаткой текста программы, графиками результатов исследования и анализом результатов.
-\end{itemize}
+\end{enumerate}
 
 \section{Реализация}
 
-% Код программы написан на языке C++. Для выполнения матричных операций используется библиотека
-% \href{https://eigen.tuxfamily.org/index.php?title=Main_Page}{Eigen}.
-% 
-% В листинге \ref{lst:activation_function.h} приводится реализация функций активации: линейной, ReLU, Leaky ReLU, сигмоиды, гиперболического
-% тангенса и Softmax.
-% 
-% В листинге \ref{lst:cost_function.h} приводится реализация функций ошибки: MSE, кросс-энтропии и дивергенции Кульбака-Лейблера.
-% 
-% В листингах \ref{lst:perceptron.h} и \ref{lst:perceptron.cc} приводится реализация многослойного персептрона, его обучения методом стохастического
-% градиентного спуска (с mini-batch оптимизацией) с вычислением градиентов методом обратного распространения ошибки, а также фиксирования показателей
-% ошибки и точности персепторна на тестовых данных для каждой эпохи.
-% 
-% В листингах \ref{lst:data_supplier.h}, \ref{lst:data_supplier.cc}, \ref{lst:util.h} приводится програмнный код генерации данных для обучения,
-% валидации и тестирования. Задаётся по 10 образцов цифр и букв русского алфавита, для каждого из которых порождается $2^4 = 16$ модификаций. 
-% Всего сгенерированных данных --- $20 \cdot 16 = 320$, и они равномерно распределяются между данными для обучения, валидации и тестирования в соотношении
-% $50\%$, $20\%$ и $30\%$ соответственно.
-% 
-% В листинге \ref{lst:main.cc} приводится \texttt{main}-файл с различными конфигурациями однослойного персептрона.
-% 
-% \begin{longlisting}
-%   \caption{Файл \texttt{activation\_function.h}}
-%   \inputminted{cpp}{../src/activation_function.h}
-%   \label{lst:activation_function.h}
-% \end{longlisting}
-% 
-% \begin{longlisting}
-%   \caption{Файл \texttt{cost\_function.h}}
-%   \inputminted{cpp}{../src/cost_function.h}
-%   \label{lst:cost_function.h}
-% \end{longlisting}
-% 
-% \begin{longlisting}
-%   \caption{Файл \texttt{perceptron.h}}
-%   \inputminted{cpp}{../src/perceptron.h}
-%   \label{lst:perceptron.h}
-% \end{longlisting}
-% 
-% \begin{longlisting}
-%   \caption{Файл \texttt{perceptron.cc}}
-%   \inputminted{cpp}{../src/perceptron.cc}
-%   \label{lst:perceptron.cc}
-% \end{longlisting}
-% 
-% \begin{longlisting}
-%   \caption{Файл \texttt{data\_supplier.h}}
-%   \inputminted{cpp}{../src/data_supplier.h}
-%   \label{lst:data_supplier.h}
-% \end{longlisting}
-% 
-% \begin{longlisting}
-%   \caption{Файл \texttt{data\_supplier.cc}}
-%   \inputminted{cpp}{../src/data_supplier.cc}
-%   \label{lst:data_supplier.cc}
-% \end{longlisting}
-% 
-% \begin{longlisting}
-%   \caption{Файл \texttt{util.h}}
-%   \inputminted{cpp}{../src/util.h}
-%   \label{lst:util.h}
-% \end{longlisting}
-% 
-% \begin{longlisting}
-%   \caption{Файл \texttt{main.cc}}
-%   \inputminted{cpp}{../src/main.cc}
-%   \label{lst:main.cc}
-% \end{longlisting}
+Каркас для обучения многослойного персептрона на основе стохастического градиентного спуска и обратного распространения ошибки был разработан в
+домашнем задании №1. Программа написана на языке C++; для выполнения матричных операций используется библиотека
+\href{https://eigen.tuxfamily.org/index.php?title=Main_Page}{Eigen}.
+
+В листинге \ref{lst:activation_function.h} приводится реализация функций активации: линейной, ReLU, Leaky ReLU, сигмоиды, гиперболического
+тангенса и Softmax.
+
+В листинге \ref{lst:cost_function.h} приводится реализация функций ошибки: MSE, кросс-энтропии и дивергенции Кульбака-Лейблера.
+
+В листингах \ref{lst:perceptron.h} и \ref{lst:perceptron.cc} приводится реализация многослойного персептрона и его обучения.
+
+В листингах \ref{lst:data_supplier.h} и \ref{lst:data_supplier.cc} приводится программный код формирования данных для обучения, валидации и
+тестирования на основе исходных файлов датасета MNIST в формате CSV.
+
+В листинге \ref{lst:main.cc} приводится \texttt{main}-файл с различными конфигурациями персептрона.
+ 
+\begin{longlisting}
+  \caption{Файл \texttt{activation\_function.h}}
+  \inputminted{cpp}{../src/activation_function.h}
+  \label{lst:activation_function.h}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{cost\_function.h}}
+  \inputminted{cpp}{../src/cost_function.h}
+  \label{lst:cost_function.h}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{perceptron.h}}
+  \inputminted{cpp}{../src/perceptron.h}
+  \label{lst:perceptron.h}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{perceptron.cc}}
+  \inputminted{cpp}{../src/perceptron.cc}
+  \label{lst:perceptron.cc}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{data\_supplier.h}}
+  \inputminted{cpp}{../src/data_supplier.h}
+  \label{lst:data_supplier.h}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{data\_supplier.cc}}
+  \inputminted{cpp}{../src/data_supplier.cc}
+  \label{lst:data_supplier.cc}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{main.cc}}
+  \inputminted{cpp}{../src/main.cc}
+  \label{lst:main.cc}
+\end{longlisting}
 
 \section{Результаты экспериментов}
 
 На протяжении всех экспериментов значения некоторых гиперпараметров были фиксированными:
 \begin{itemize}
   \item количество эпох: $200$;
-  \item размер пакета данных (mini-batch): $100$;
+  \item размер пакета данных (mini-batch) для стохастического градиентного спуска: $100$;
   \item коэффициент обучения (learning rate): $0.025$.
 \end{itemize}
 Изменялись значения следующих гиперпараметров:
