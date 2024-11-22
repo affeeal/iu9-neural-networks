@@ -16,6 +16,8 @@ class IFunction {
   virtual double Calculate(const Eigen::VectorXd& u) const = 0;
 
   virtual Eigen::VectorXd Gradient(const Eigen::VectorXd& u) const = 0;
+
+  virtual Eigen::MatrixXd Hessian(const Eigen::VectorXd& u) const = 0;
 };
 
 class RosenbrockFunction final : public IFunction {
@@ -36,6 +38,14 @@ class RosenbrockFunction final : public IFunction {
         1000 * std::pow(u.x(), 3) - 1000 * u.x() * u.y() + 4 * u.x() - 4,
         -500 * std::pow(u.x(), 2) + 500 * u.y()};
   }
+
+  Eigen::MatrixXd Hessian(const Eigen::VectorXd& u) const override {
+    assert(u.size() == Size());
+    return Eigen::Matrix<double, kInputSize, kInputSize>{
+        {3000 * std::pow(u.x(), 2) - 1000 * u.y() + 4, -1000 * u.x()},
+        {-1000 * u.x(), 500},
+    };
+  }
 };
 
 class Paraboloid final : public IFunction {
@@ -52,6 +62,14 @@ class Paraboloid final : public IFunction {
   Eigen::VectorXd Gradient(const Eigen::VectorXd& u) const override {
     assert(u.size() == Size());
     return Eigen::Vector<double, kInputSize>{2 * (u.x() - 1), 2 * (u.y() - 1)};
+  }
+
+  Eigen::MatrixXd Hessian(const Eigen::VectorXd& u) const override {
+    assert(u.size() == Size());
+    return Eigen::Matrix<double, kInputSize, kInputSize>{
+        {2, 0},
+        {0, 2},
+    };
   }
 };
 
@@ -230,6 +248,36 @@ Eigen::VectorXd DavidonFletcherPowell(const IFunction& f,
   return x;
 }
 
+Eigen::VectorXd LevenbergMarquardt(const IFunction& f,
+                                   const Eigen::VectorXd& x0,
+                                   const std::size_t max_iterations,
+                                   const double epsilon) {
+  spdlog::info("Levenberg-Marquardt algorithm");
+
+  auto x = x0;
+  auto mu = 1e+4;
+  const auto n = f.Size();
+
+  for (std::size_t k = 0; k < max_iterations; ++k) {
+    const auto f_x = f.Calculate(x);
+    spdlog::info("Iteration {}: x = ({}, {}), f(x) = {}", k, x.x(), x.y(), f_x);
+    const auto grad = f.Gradient(x);
+    if (grad.norm() < epsilon) {
+      spdlog::info("||grad|| < epsilon");
+      return x;
+    }
+
+    x -= (f.Hessian(x) + mu * Eigen::MatrixXd::Identity(n, n)).inverse() * grad;
+    if (f.Calculate(x) < f_x) {
+      mu /= 2;
+    } else {
+      mu *= 2;
+    }
+  }
+
+  return x;
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -238,16 +286,26 @@ int main(int argc, char* argv[]) {
   const auto paraboloid = Paraboloid();
   const auto rosenbrock = RosenbrockFunction();
 
-  const auto x0 = Eigen::Vector<double, 2>{0, 0};
+  const auto x0 = Eigen::Vector<double, 2>{10, 10};
 
   const auto cfg =
       Config{.a = -10.0, .b = 10.0, .delta = 10e-16, .epsilon = 10e-15};
 
-  std::cout << FletcherReeves(rosenbrock, x0, 100, 10e-15, 10e-15, 10e-15, cfg)
+  constexpr auto kDelta = 1e-10;
+  constexpr auto kEpsilon = 1e-9;
+  constexpr auto kGradientEpsilon = 1e-9;
+  constexpr std::size_t kMaxIterations = 100;
+
+  std::cout << FletcherReeves(rosenbrock, x0, kMaxIterations, 10e-15, 10e-15,
+                              10e-15, cfg)
             << "\n\n";
-  std::cout << PolakRibier(rosenbrock, x0, 100, 10e-15, 10e-15, 10e-15, cfg)
+  std::cout << PolakRibier(rosenbrock, x0, kMaxIterations, 10e-15, 10e-15,
+                           10e-15, cfg)
             << "\n\n";
-  std::cout << DavidonFletcherPowell(rosenbrock, x0, 100, 10e-15, 10e-15,
-                                     10e-15, cfg)
+  std::cout << DavidonFletcherPowell(rosenbrock, x0, kMaxIterations,
+                                     kGradientEpsilon, 10e-15, 10e-15, cfg)
+            << "\n\n";
+  std::cout << LevenbergMarquardt(rosenbrock, x0, kMaxIterations,
+                                  kGradientEpsilon)
             << "\n\n";
 }
