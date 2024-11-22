@@ -62,7 +62,6 @@ struct Config final {
 
 double DichotomyMinimum(const std::function<double(double)>& f,
                         const Config& cfg) {
-  spdlog::debug("Dichotomy minimum...");
   auto a = cfg.a;
   auto b = cfg.b;
 
@@ -177,13 +176,78 @@ Eigen::VectorXd PolakRibier(const IFunction& f, const Eigen::VectorXd& x0,
   return x;
 }
 
+Eigen::VectorXd DavidonFletcherPowell(const IFunction& f,
+                                      const Eigen::VectorXd& x0,
+                                      const std::size_t max_iterations,
+                                      const double grad_epsilon,
+                                      const double delta, const double epsilon,
+                                      const Config& cfg) {
+  spdlog::info("Davidon–Fletcher–Powell");
+
+  Eigen::VectorXd x = x0, x_next;
+  Eigen::VectorXd grad = f.Gradient(x), grad_next;
+  Eigen::VectorXd d;
+
+  const auto phi = [&](const double alpha) {
+    return f.Calculate(x + alpha * d);
+  };
+
+  const auto n = f.Size();
+  Eigen::MatrixXd b(n, n);
+  b.setIdentity();
+
+  for (std::size_t k = 0; k < max_iterations; ++k) {
+    spdlog::info("Iteration {}, x = ({}, {}), f(x) = {}", k, x.x(), x.y(),
+                 f.Calculate(x));
+    if (grad.norm() < grad_epsilon) {
+      spdlog::info("||grad|| < epsilon");
+      break;
+    }
+
+    d = -b * grad;
+    const auto alpha = DichotomyMinimum(phi, cfg);
+    x_next = x + alpha * d;
+
+    if ((x_next - x).norm() < delta &&
+        std::abs(f.Calculate(x_next) - f.Calculate(x)) < epsilon) {
+      spdlog::info("|x - x_next| < delta, |f(x) - f(x_next)| < epsilon");
+      break;
+    }
+
+    const Eigen::VectorXd delta_x = x_next - x;
+    grad_next = f.Gradient(x_next);
+    const Eigen::VectorXd delta_grad = grad_next - grad;
+    const Eigen::VectorXd w1 = delta_x;
+    const Eigen::VectorXd w2 = b * delta_grad;
+    const double sigma1 = 1 / w1.dot(delta_grad);
+    const double sigma2 = -1 / w2.dot(delta_grad);
+    b += sigma1 * w1 * w1.transpose() + sigma2 * w2 * w2.transpose();
+
+    x = std::move(x_next);
+    grad = std::move(grad_next);
+  }
+
+  return x;
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
   spdlog::set_level(spdlog::level::level_enum::debug);
-  const auto f = Paraboloid();
-  const auto x0 = Eigen::Vector<double, 2>{100, 100};
+
+  const auto paraboloid = Paraboloid();
+  const auto rosenbrock = RosenbrockFunction();
+
+  const auto x0 = Eigen::Vector<double, 2>{0, 0};
+
   const auto cfg =
       Config{.a = -10.0, .b = 10.0, .delta = 10e-16, .epsilon = 10e-15};
-  std::cout << FletcherReeves(f, x0, 100, 10e-15, 10e-15, 10e-15, cfg) << '\n';
+
+  std::cout << FletcherReeves(rosenbrock, x0, 100, 10e-15, 10e-15, 10e-15, cfg)
+            << "\n\n";
+  std::cout << PolakRibier(rosenbrock, x0, 100, 10e-15, 10e-15, 10e-15, cfg)
+            << "\n\n";
+  std::cout << DavidonFletcherPowell(rosenbrock, x0, 100, 10e-15, 10e-15,
+                                     10e-15, cfg)
+            << "\n\n";
 }
