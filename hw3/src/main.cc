@@ -1,13 +1,14 @@
 #include <spdlog/spdlog.h>
 
 #include <Eigen/Dense>
+#include <cmath>
 #include <eigen3/Eigen/Core>
 
 namespace {
 
-class IFunction {
+class IMultivariateFunction {
  public:
-  virtual ~IFunction() = default;
+  virtual ~IMultivariateFunction() = default;
 
  public:
   virtual std::size_t Size() const = 0;
@@ -19,7 +20,7 @@ class IFunction {
   virtual Eigen::MatrixXd Hessian(const Eigen::VectorXd& u) const = 0;
 };
 
-class RosenbrockFunction final : public IFunction {
+class RosenbrockFunction final : public IMultivariateFunction {
  public:
   static constexpr std::size_t kInputSize = 2;
 
@@ -44,7 +45,7 @@ class RosenbrockFunction final : public IFunction {
   }
 };
 
-class Paraboloid final : public IFunction {
+class Paraboloid final : public IMultivariateFunction {
  public:
   static constexpr std::size_t kInputSize = 2;
 
@@ -66,19 +67,12 @@ class Paraboloid final : public IFunction {
   }
 };
 
-struct Config final {
-  double a, b;
-  double delta, epsilon;
-};
-
-double DichotomyMinimum(const std::function<double(double)>& f,
-                        const Config& cfg) {
-  auto a = cfg.a;
-  auto b = cfg.b;
-
-  while (b - a >= cfg.epsilon) {
-    const auto x1 = 0.5 * (a + b) - cfg.delta;
-    const auto x2 = 0.5 * (a + b) + cfg.delta;
+double DichotomySearch(double a, double b, const double delta,
+                       const double epsilon,
+                       const std::function<double(double)>& f) {
+  while (b - a >= epsilon) {
+    const auto x1 = 0.5 * (a + b) - delta;
+    const auto x2 = 0.5 * (a + b) + delta;
 
     const auto f1 = f(x1);
     const auto f2 = f(x2);
@@ -96,10 +90,67 @@ double DichotomyMinimum(const std::function<double(double)>& f,
   return 0.5 * (a + b);
 }
 
-Eigen::VectorXd FletcherReeves(const IFunction& f, const Eigen::VectorXd& x0,
+template <std::size_t N>
+constexpr std::array<std::size_t, N + 1> GetFibonacciNumbers() {
+  auto numbers = std::array<std::size_t, N + 1>{};
+  numbers[0] = 0;
+  numbers[1] = 1;
+  for (std::size_t i = 2; i <= N; ++i) {
+    numbers[i] = numbers[i - 2] + numbers[i - 1];
+  }
+  return numbers;
+}
+
+double FibonacciSearch(const std::function<double(double)>& f, const double a,
+                       const double b) {
+  static constexpr std::size_t kN = 150;
+  static constexpr auto kF = GetFibonacciNumbers<kN>();
+
+  auto xl = a;
+  auto xr = b;
+  auto l0 = xr - xl;
+  auto li = static_cast<double>(kF[kN - 2]) / static_cast<double>(kF[kN]) * l0;
+
+  double x1 = 0, x2 = 0, f1 = 0, f2 = 0;
+  for (std::size_t i = 2; i <= kN; ++i) {
+    if (li > l0 / 2) {
+      x1 = xr - li;
+      x2 = xl + li;
+    } else {
+      x1 = xl + li;
+      x2 = xr - li;
+    }
+
+    f1 = f(x1);
+    f2 = f(x2);
+
+    if (f1 < f2) {
+      xr = x2;
+      li = static_cast<double>(kF[kN - i]) / kF[kN - (i - 2)] * l0;
+    } else if (f1 > f2) {
+      xl = x1;
+      li = static_cast<double>(kF[kN - i]) / kF[kN - (i - 2)] * l0;
+    } else {
+      xl = x1;
+      xr = x2;
+      li = static_cast<double>(kF[kN - i]) / kF[kN - (i - 2)] * (xr - xl);
+    }
+
+    l0 = xr - xl;
+  }
+
+  if (f1 <= f2) {
+    return x1;
+  }
+  return x2;
+}
+
+Eigen::VectorXd FletcherReeves(const IMultivariateFunction& f,
+                               const Eigen::VectorXd& x0,
                                const std::size_t max_iterations,
                                const double grad_epsilon, const double delta,
-                               const double epsilon, const Config& cfg) {
+                               const double epsilon, const double a,
+                               const double b) {
   Eigen::VectorXd x = x0, x_next;
   Eigen::VectorXd prev_grad, grad;
   Eigen::VectorXd prev_d, d;
@@ -118,7 +169,7 @@ Eigen::VectorXd FletcherReeves(const IFunction& f, const Eigen::VectorXd& x0,
       d += w_prev * prev_grad;
     }
 
-    const auto alpha = DichotomyMinimum(phi, cfg);
+    const auto alpha = FibonacciSearch(phi, a, b);
     x_next = x + alpha * d;
 
     if ((x_next - x).norm() < delta &&
@@ -134,10 +185,12 @@ Eigen::VectorXd FletcherReeves(const IFunction& f, const Eigen::VectorXd& x0,
   return x;
 }
 
-Eigen::VectorXd PolakRibier(const IFunction& f, const Eigen::VectorXd& x0,
+Eigen::VectorXd PolakRibier(const IMultivariateFunction& f,
+                            const Eigen::VectorXd& x0,
                             const std::size_t max_iterations,
                             const double grad_epsilon, const double delta,
-                            const double epsilon, const Config& cfg) {
+                            const double epsilon, const double a,
+                            const double b) {
   Eigen::VectorXd x = x0, x_next;
   Eigen::VectorXd prev_grad, grad;
   Eigen::VectorXd prev_d, d;
@@ -160,7 +213,7 @@ Eigen::VectorXd PolakRibier(const IFunction& f, const Eigen::VectorXd& x0,
       d += w_prev * prev_grad;
     }
 
-    alpha = DichotomyMinimum(phi, cfg);
+    alpha = FibonacciSearch(phi, a, b);
     x_next = x + alpha * d;
 
     if ((x_next - x).norm() < delta &&
@@ -176,12 +229,12 @@ Eigen::VectorXd PolakRibier(const IFunction& f, const Eigen::VectorXd& x0,
   return x;
 }
 
-Eigen::VectorXd DavidonFletcherPowell(const IFunction& f,
+Eigen::VectorXd DavidonFletcherPowell(const IMultivariateFunction& f,
                                       const Eigen::VectorXd& x0,
                                       const std::size_t max_iterations,
                                       const double grad_epsilon,
                                       const double delta, const double epsilon,
-                                      const Config& cfg) {
+                                      const double a, const double b) {
   Eigen::VectorXd x = x0, x_next;
   Eigen::VectorXd grad = f.Gradient(x), grad_next;
   Eigen::VectorXd d;
@@ -200,7 +253,7 @@ Eigen::VectorXd DavidonFletcherPowell(const IFunction& f,
     }
 
     d = -g * grad;
-    const auto alpha = DichotomyMinimum(phi, cfg);
+    const auto alpha = FibonacciSearch(phi, a, b);
     x_next = x + alpha * d;
 
     if ((x_next - x).norm() < delta &&
@@ -224,7 +277,7 @@ Eigen::VectorXd DavidonFletcherPowell(const IFunction& f,
   return x;
 }
 
-Eigen::VectorXd LevenbergMarquardt(const IFunction& f,
+Eigen::VectorXd LevenbergMarquardt(const IMultivariateFunction& f,
                                    const Eigen::VectorXd& x0,
                                    const std::size_t max_iterations,
                                    const double epsilon) {
@@ -256,27 +309,27 @@ int main() {
   spdlog::set_level(spdlog::level::level_enum::debug);
 
   const auto f = RosenbrockFunction();
-  const auto x0 = Eigen::Vector<double, 2>{100, 100};
-  const auto cfg =
-      Config{.a = -10.0, .b = 10.0, .delta = 1e-10, .epsilon = 1e-9};
+  const auto x0 = Eigen::Vector<double, 2>{10, 10};
 
+  constexpr std::size_t kMaxIterations = 100;
   constexpr auto kDelta = 1e-10;
   constexpr auto kEpsilon = 1e-9;
   constexpr auto kGradientEpsilon = 1e-9;
-  constexpr std::size_t kMaxIterations = 100;
+  constexpr auto kA = -10.0;
+  constexpr auto kB = 10.0;
 
   auto u = FletcherReeves(f, x0, kMaxIterations, kGradientEpsilon, kDelta,
-                          kEpsilon, cfg);
+                          kEpsilon, kA, kB);
   spdlog::info("Fletcher-Reeves: x=({}, {}), f(x)={}", u.x(), u.y(),
                f.Calculate(u));
 
-  u = PolakRibier(f, x0, kMaxIterations, kGradientEpsilon, kDelta, kEpsilon,
-                  cfg);
+  u = PolakRibier(f, x0, kMaxIterations, kGradientEpsilon, kDelta, kEpsilon, kA,
+                  kB);
   spdlog::info("Polak-Ribier: x=({}, {}), f(x)={}", u.x(), u.y(),
                f.Calculate(u));
 
   u = DavidonFletcherPowell(f, x0, kMaxIterations, kGradientEpsilon, kDelta,
-                            kEpsilon, cfg);
+                            kEpsilon, kA, kB);
   spdlog::info("Davidon-Fletcher-Powell: x=({}, {}), f(x)={}", u.x(), u.y(),
                f.Calculate(u));
 
