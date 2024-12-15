@@ -17,7 +17,7 @@ void RunLeakyReluSoftmaxCrossEntropy() {
   constexpr static auto kCfg = nn::SgdConfiguration{
       .epochs = 50,
       .mini_batch_size = 10,
-      .learning_rate = 0.025,
+      .learning_rate = 10,
       .monitor_training_cost = true,
       .monitor_training_accuracy = true,
       .monitor_testing_cost = true,
@@ -42,7 +42,7 @@ void RunLeakyReluSoftmaxCrossEntropy() {
 
   auto perceptron = nn::Perceptron(
       std::move(cost_function), std::move(activation_functions), layers_sizes);
-  const auto metrics = perceptron.SgdNag(training, testing, kCfg, 0);
+  const auto metrics = perceptron.SgdAdagrad(training, testing, kCfg, 1e-6);
 
   matplot::title("Leaky ReLU, Softmax + Cross-entropy training, testing cost");
   matplot::plot(metrics.training_cost)->display_name("Training data");

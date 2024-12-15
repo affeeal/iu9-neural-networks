@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <iterator>
 #include <sstream>
@@ -85,7 +86,7 @@ Metric Perceptron::SgdNag(
   const auto whole_mini_batches_number = training_size / cfg.mini_batch_size;
   const auto remainder_mini_batch_size = training_size % cfg.mini_batch_size;
 
-  auto [weights_momentum, biases_momentum] = CreateZeroParameters();
+  auto [weights_momentum, biases_momentum] = CreateParameters(0);
   auto training_shuffled = std::vector(training.begin(), training.end());
   auto metric = CreateMetric(cfg);
   for (std::size_t i = 0; i < cfg.epochs; ++i) {
@@ -108,27 +109,62 @@ Metric Perceptron::SgdNag(
   return metric;
 }
 
+Metric Perceptron::SgdAdagrad(
+    const std::vector<std::shared_ptr<const IData>> &training,
+    const std::vector<std::shared_ptr<const IData>> &testing,
+    const SgdConfiguration &cfg, const double epsilon) {
+  if (epsilon <= 0) {
+    throw std::runtime_error("The epsilon must be strictly greater than 0");
+  }
+
+  const auto training_size = training.size();
+  const auto whole_mini_batches_number = training_size / cfg.mini_batch_size;
+  const auto remainder_mini_batch_size = training_size % cfg.mini_batch_size;
+
+  auto [nabla_weights_squares, nabla_biases_square] = CreateParameters(epsilon);
+  auto training_shuffled = std::vector(training.begin(), training.end());
+  auto metric = CreateMetric(cfg);
+  for (std::size_t i = 0; i < cfg.epochs; ++i) {
+    std::shuffle(training_shuffled.begin(), training_shuffled.end(),
+                 generator_);
+    auto it = training_shuffled.begin();
+    for (std::size_t i = 0; i < whole_mini_batches_number; ++i) {
+      auto end = it + cfg.mini_batch_size;
+      UpdateSgdAdagrad(nabla_weights_squares, nabla_biases_square, it, end,
+                       cfg.mini_batch_size, cfg.learning_rate);
+      it = std::move(end);
+    }
+    if (remainder_mini_batch_size != 0) {
+      UpdateSgdAdagrad(nabla_weights_squares, nabla_biases_square, it,
+                       it + remainder_mini_batch_size,
+                       remainder_mini_batch_size, cfg.learning_rate);
+    }
+    WriteMetric(metric, i, training, testing, cfg);
+  }
+
+  return metric;
+}
+
 template <typename Iter>
 void Perceptron::UpdateSgd(const Iter mini_batch_begin,
                            const Iter mini_batch_end,
                            const std::size_t mini_batch_size,
                            const double learning_rate) {
-  auto [nabla_weights, nabla_biases] = CreateZeroParameters();
-
+  auto [nabla_weights, nabla_biases] = CreateParameters(0);
   for (auto it = mini_batch_begin; it != mini_batch_end; ++it) {
     const auto &data = **it;
-    const auto [nabla_weights_part, nabla_biases_part] =
+    const auto [nabla_weights_contribution, nabla_biases_contribution] =
         Backpropagation(data.GetX(), data.GetY());
     for (std::size_t i = 0; i < connections_number_; ++i) {
-      nabla_weights[i] += nabla_weights_part[i];
-      nabla_biases[i] += nabla_biases_part[i];
+      nabla_weights[i] += nabla_weights_contribution[i];
+      nabla_biases[i] += nabla_biases_contribution[i];
     }
   }
 
-  const auto coeff = learning_rate / mini_batch_size;
+  const auto factor = learning_rate / mini_batch_size;
   for (std::size_t i = 0; i < connections_number_; ++i) {
-    weights_[i] -= coeff * nabla_weights[i];
-    biases_[i] -= coeff * nabla_biases[i];
+    weights_[i] -= factor * nabla_weights[i];
+    biases_[i] -= factor * nabla_biases[i];
   }
 }
 
@@ -145,7 +181,7 @@ void Perceptron::UpdateSgdNag(std::vector<Eigen::MatrixXd> &weights_momentum,
     biases_[i] -= momentum * biases_momentum[i];
   }
 
-  auto [nabla_weights, nabla_biases] = CreateZeroParameters();
+  auto [nabla_weights, nabla_biases] = CreateParameters(0);
   for (auto it = mini_batch_begin; it != mini_batch_end; ++it) {
     const auto &data = **it;
     const auto [nabla_weights_contribution, nabla_biases_contribution] =
@@ -167,6 +203,36 @@ void Perceptron::UpdateSgdNag(std::vector<Eigen::MatrixXd> &weights_momentum,
     const auto saved_biases_momentum = momentum * biases_momentum[i];
     biases_momentum[i] = saved_biases_momentum + factor * nabla_biases[i];
     biases_[i] += saved_biases_momentum - biases_momentum[i];
+  }
+}
+
+template <typename Iter>
+void Perceptron::UpdateSgdAdagrad(
+    std::vector<Eigen::MatrixXd> &nabla_weights_squares,
+    std::vector<Eigen::VectorXd> &nabla_biases_squares,
+    const Iter mini_batch_begin, const Iter mini_batch_end,
+    const std::size_t mini_batch_size, const double learning_rate) {
+  auto [nabla_weights, nabla_biases] = CreateParameters(0);
+  for (auto it = mini_batch_begin; it != mini_batch_end; ++it) {
+    const auto &data = **it;
+    const auto [nabla_weights_part, nabla_biases_part] =
+        Backpropagation(data.GetX(), data.GetY());
+    for (std::size_t i = 0; i < connections_number_; ++i) {
+      nabla_weights[i] += nabla_weights_part[i];
+      nabla_biases[i] += nabla_biases_part[i];
+    }
+  }
+
+  for (std::size_t i = 0; i < connections_number_; ++i) {
+    const auto weights_gradient = nabla_weights[i] / mini_batch_size;
+    nabla_weights_squares[i] += weights_gradient.array().pow(2).matrix();
+    weights_[i] -=
+        learning_rate / nabla_weights_squares[i].lpNorm<2>() * weights_gradient;
+
+    const auto biases_gradient = nabla_biases[i] / mini_batch_size;
+    nabla_biases_squares[i] += biases_gradient.array().pow(2).matrix();
+    biases_[i] -=
+        learning_rate / nabla_biases_squares[i].lpNorm<2>() * biases_gradient;
   }
 }
 
@@ -225,17 +291,21 @@ Perceptron::FeedforwardDetailed(const Eigen::VectorXd &x) {
 }
 
 std::pair<std::vector<Eigen::MatrixXd>, std::vector<Eigen::VectorXd>>
-Perceptron::CreateZeroParameters() const {
+Perceptron::CreateParameters(const double initial_value) const {
   auto weights = std::vector<Eigen::MatrixXd>{};
   weights.reserve(weights_.size());
   for (auto &&w : weights_) {
-    weights.push_back(Eigen::MatrixXd::Zero(w.rows(), w.cols()));
+    auto m = Eigen::MatrixXd(w.rows(), w.cols());
+    m.setConstant(initial_value);
+    weights.push_back(std::move(m));
   }
 
   auto biases = std::vector<Eigen::VectorXd>{};
   biases.reserve(biases_.size());
   for (auto &&b : biases_) {
-    biases.push_back(Eigen::VectorXd::Zero(b.size()));
+    auto v = Eigen::VectorXd(b.size());
+    v.setConstant(initial_value);
+    biases.push_back(std::move(v));
   }
 
   return {weights, biases};

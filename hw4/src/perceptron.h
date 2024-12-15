@@ -70,17 +70,28 @@ class Perceptron final {
                 const std::vector<std::shared_ptr<const IData>> &testing,
                 const SgdConfiguration &cfg, const double momentum);
 
+  Metric SgdAdagrad(const std::vector<std::shared_ptr<const IData>> &training,
+                    const std::vector<std::shared_ptr<const IData>> &testing,
+                    const SgdConfiguration &cfg, const double epsilon);
+
  private:
   template <typename Iter>  // TODO: Use concepts
   void UpdateSgd(const Iter mini_batch_begin, const Iter mini_batch_end,
-                 const std::size_t mini_batch_size, const double eta);
+                 const std::size_t mini_batch_size, const double learning_rate);
 
   template <typename Iter>
   void UpdateSgdNag(std::vector<Eigen::MatrixXd> &weights_momentum,
                     std::vector<Eigen::VectorXd> &biases_momentum,
                     const Iter mini_batch_begin, const Iter mini_batch_end,
-                    const std::size_t mini_batch_size, const double eta,
-                    const double momentum);
+                    const std::size_t mini_batch_size,
+                    const double learning_rate, const double momentum);
+
+  template <typename Iter>
+  void UpdateSgdAdagrad(std::vector<Eigen::MatrixXd> &nabla_weights_squares,
+                        std::vector<Eigen::VectorXd> &nabla_biases_squares,
+                        const Iter mini_batch_begin, const Iter mini_batch_end,
+                        const std::size_t mini_batch_size,
+                        const double learning_rate);
 
   std::pair<std::vector<Eigen::MatrixXd>, std::vector<Eigen::VectorXd>>
   Backpropagation(const Eigen::VectorXd &x, const Eigen::VectorXd &y);
@@ -89,7 +100,7 @@ class Perceptron final {
   FeedforwardDetailed(const Eigen::VectorXd &x);
 
   std::pair<std::vector<Eigen::MatrixXd>, std::vector<Eigen::VectorXd>>
-  CreateZeroParameters() const;
+  CreateParameters(const double initial_value) const;
 
   Metric CreateMetric(const SgdConfiguration &cfg) const;
 
