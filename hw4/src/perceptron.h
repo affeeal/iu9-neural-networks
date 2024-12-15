@@ -68,11 +68,16 @@ class Perceptron final {
 
   Metric SgdNag(const std::vector<std::shared_ptr<const IData>> &training,
                 const std::vector<std::shared_ptr<const IData>> &testing,
-                const SgdConfiguration &cfg, const double momentum);
+                const SgdConfiguration &cfg, const double gamma);
 
   Metric SgdAdagrad(const std::vector<std::shared_ptr<const IData>> &training,
                     const std::vector<std::shared_ptr<const IData>> &testing,
                     const SgdConfiguration &cfg, const double epsilon);
+
+  Metric SgdAdam(const std::vector<std::shared_ptr<const IData>> &training,
+                 const std::vector<std::shared_ptr<const IData>> &testing,
+                 const SgdConfiguration &cfg, const double beta1,
+                 const double beta2, const double epsilon);
 
  private:
   template <typename Iter>  // TODO: Use concepts
@@ -80,27 +85,47 @@ class Perceptron final {
                  const std::size_t mini_batch_size, const double learning_rate);
 
   template <typename Iter>
-  void UpdateSgdNag(std::vector<Eigen::MatrixXd> &weights_momentum,
-                    std::vector<Eigen::VectorXd> &biases_momentum,
+  void UpdateSgdNag(std::vector<Eigen::MatrixXd> &delta_weights_ema,
+                    std::vector<Eigen::VectorXd> &delta_biases_ema,
                     const Iter mini_batch_begin, const Iter mini_batch_end,
                     const std::size_t mini_batch_size,
-                    const double learning_rate, const double momentum);
+                    const double learning_rate, const double gamma);
 
   template <typename Iter>
-  void UpdateSgdAdagrad(std::vector<Eigen::MatrixXd> &nabla_weights_squares,
-                        std::vector<Eigen::VectorXd> &nabla_biases_squares,
-                        const Iter mini_batch_begin, const Iter mini_batch_end,
-                        const std::size_t mini_batch_size,
-                        const double learning_rate);
+  void UpdateSgdAdagrad(
+      std::vector<Eigen::MatrixXd> &weights_gradient_squares_sum,
+      std::vector<Eigen::VectorXd> &biases_gradient_squares_sum,
+      const Iter mini_batch_begin, const Iter mini_batch_end,
+      const std::size_t mini_batch_size, const double learning_rate);
 
-  std::pair<std::vector<Eigen::MatrixXd>, std::vector<Eigen::VectorXd>>
-  Backpropagation(const Eigen::VectorXd &x, const Eigen::VectorXd &y);
+  template <typename Iter>
+  void UpdateSgdAdam(std::vector<Eigen::MatrixXd> &weights_gradient_ema,
+                     std::vector<Eigen::VectorXd> &biases_gradient_ema,
+                     std::vector<Eigen::MatrixXd> &weights_squared_gradient_ema,
+                     std::vector<Eigen::VectorXd> &biases_squared_gradient_ema,
+                     const Iter mini_batch_begin, const Iter mini_batch_end,
+                     const std::size_t mini_batch_size, const std::size_t epoch,
+                     const double learning_rate, const double beta1,
+                     const double beta2);
+
+ private:
+  struct Parameters {
+    std::vector<Eigen::MatrixXd> weights;
+    std::vector<Eigen::VectorXd> biases;
+  };
+
+  Parameters CreateParameters(const double initial_value) const;
+
+  template <typename Iter>
+  Parameters GradientWrtParameters(const Iter mini_batch_begin,
+                                   const Iter mini_batch_end,
+                                   const std::size_t mini_batch_size) const;
+
+  Parameters Backpropagation(const Eigen::VectorXd &x,
+                             const Eigen::VectorXd &y) const;
 
   std::pair<std::vector<Eigen::VectorXd>, std::vector<Eigen::VectorXd>>
-  FeedforwardDetailed(const Eigen::VectorXd &x);
-
-  std::pair<std::vector<Eigen::MatrixXd>, std::vector<Eigen::VectorXd>>
-  CreateParameters(const double initial_value) const;
+  FeedforwardDetailed(const Eigen::VectorXd &x) const;
 
   Metric CreateMetric(const SgdConfiguration &cfg) const;
 
@@ -110,10 +135,10 @@ class Perceptron final {
                    const SgdConfiguration &cfg) const;
 
   template <typename Iter>
-  std::size_t Accuracy(const Iter begin, const Iter end) const;
+  std::size_t CalculateAccuracy(const Iter begin, const Iter end) const;
 
   template <typename Iter>
-  double Cost(const Iter begin, const Iter end) const;
+  double CalculateCost(const Iter begin, const Iter end) const;
 };
 
 }  // namespace nn
