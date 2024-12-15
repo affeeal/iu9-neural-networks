@@ -9,8 +9,8 @@
 
 namespace {
 
-const std::string kDefaultTestPath = "../data/mnist_test.csv";
-const std::string kDefaultTrainPath = "../data/mnist_train.csv";
+const std::string kDefaultTestPath = "../../mnist/mnist_test.csv";
+const std::string kDefaultTrainPath = "../../mnist/mnist_train.csv";
 
 constexpr std::size_t kHiddenLayerSize = 40;
 constexpr static auto kCfg = nn::Config{

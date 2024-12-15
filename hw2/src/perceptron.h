@@ -3,9 +3,7 @@
 #include <memory>
 #include <random>
 
-// clang-format off
 #include <Eigen/Dense>
-// clang-format on
 
 #include "activation_function.h"
 #include "cost_function.h"

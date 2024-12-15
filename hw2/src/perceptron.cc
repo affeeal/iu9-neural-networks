@@ -3,9 +3,7 @@
 #include <iterator>
 #include <sstream>
 
-// clang-format off
 #include <spdlog/spdlog.h>
-// clang-format on
 
 #include "perceptron.h"
 
