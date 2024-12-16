@@ -80,14 +80,14 @@ void RunGeneticAlgorithm() {
       std::make_unique<nn::AccuracyOnTestData>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
       {0.01, 0.03},  // kLearningRate
-      {5, 20},       // kEpochs
+      {5, 30},       // kEpochs
       {1, 100},      // kMiniBatchSize
       {0, 3},        // kHiddenLayer
       {10, 40},      // kNeuronsPerHiddenLayer
   };
   const auto cfg = nn::GeneticAlgorithm::Configuration{
       .populations_number = 10,
-      .population_size = 10,
+      .population_size = 30,
       .crossover_probability = 0.4,
       .mutation_probability = 0.1,
   };
