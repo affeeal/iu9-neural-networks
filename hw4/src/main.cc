@@ -6,6 +6,7 @@
 #include <numeric>
 
 #include "activation_function.h"
+#include "chromosome.h"
 #include "cost_function.h"
 #include "data_supplier.h"
 #include "fitness_function.h"
@@ -85,8 +86,9 @@ void RunGeneticAlgorithm() {
       {0, 3},        // kHiddenLayer
       {20, 40},      // kNeuronsPerHiddenLayer
   };
-  auto genetic_algorithm =
-      nn::GeneticAlgorithm(std::move(fitness_function), segments, 10, 5);
+  auto genetic_algorithm = nn::GeneticAlgorithm(
+      std::move(fitness_function),
+      nn::ChromosomeSubclass::kSgdHyperparametersKit, segments, 10, 5);
   genetic_algorithm.Run();
 }
 
