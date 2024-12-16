@@ -1,5 +1,7 @@
 #include "fitness_function.h"
 
+#include <cassert>
+
 #include "chromosome.h"
 #include "cost_function.h"
 #include "perceptron.h"
@@ -39,6 +41,9 @@ double AccuracyOnTestData::Assess(const IChromosome& chromosome) const {
       .epochs = kit.get_epochs(),
       .mini_batch_size = kit.get_mini_batch_size(),
       .learning_rate = kit.get_learning_rate(),
+      .monitor_train_cost = true,
+      .monitor_train_accuracy = true,
+      .monitor_test_cost = true,
       .monitor_test_accuracy = true,
   };
 
@@ -46,7 +51,9 @@ double AccuracyOnTestData::Assess(const IChromosome& chromosome) const {
   const auto test_data = data_supplier_->GetTestData();
 
   auto metrics = perceptron.Sgd(train_data, test_data, cfg);
-  return metrics.test_accuracy.back() / test_data.size();
+  const auto accuracy = metrics.test_accuracy.back() / test_data.size();
+  assert(0 <= accuracy && accuracy <= 1);
+  return 1 / (1 - accuracy + 1e-8);
 }
 
 }  // namespace nn

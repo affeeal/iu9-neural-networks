@@ -1,5 +1,6 @@
 #include "chromosome.h"
 
+#include <sstream>
 #include <stdexcept>
 
 namespace nn {
@@ -11,6 +12,8 @@ std::shared_ptr<IChromosome> IChromosome::Create(
       return std::make_shared<SgdHyperparametersKit>(std::move(genes));
   }
 }
+
+const std::vector<double>& IChromosome::get_genes() const { return genes_; }
 
 IChromosome::IChromosome(std::vector<double>&& genes)
     : genes_(std::move(genes)) {}
@@ -43,6 +46,16 @@ std::size_t SgdHyperparametersKit::get_hidden_layers() const {
 
 std::size_t SgdHyperparametersKit::get_neurons_per_hidden_layer() const {
   return genes_.at(Index::kNeuronsPerHiddenLayer);
+}
+
+std::string SgdHyperparametersKit::ToString() const {
+  auto oss = std::ostringstream{};
+  oss << "Learning rate: " << get_learning_rate()
+      << ";\nEpochs: " << get_epochs()
+      << ";\nMini-batch size: " << get_mini_batch_size()
+      << ";\nHidden layers: " << get_hidden_layers()
+      << ";\nNeurons per hidden layer: " << get_neurons_per_hidden_layer();
+  return oss.str();
 }
 
 }  // namespace nn

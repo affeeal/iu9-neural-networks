@@ -31,10 +31,9 @@ class GeneticAlgorithm final {
 
  private:
   std::mt19937 engine_{std::random_device{}()};
-  std::uniform_real_distribution<double> zero_one_distribution_{0.0, 1.0};
 
   std::unique_ptr<IFitnessFunction> fitness_function_;
-  ChromosomeSubclass subclass_;
+  ChromosomeSubclass chromosome_subclass_;
   std::vector<std::uniform_real_distribution<double>> genes_distributions_;
   std::vector<std::shared_ptr<IChromosome>> population_;
   Configuration cfg_;
@@ -49,8 +48,11 @@ class GeneticAlgorithm final {
   std::shared_ptr<IChromosome> Run();
 
  private:
-  std::vector<std::shared_ptr<IChromosome>> RouletteWheelSelection() const;
-  void Crossover(std::vector<std::shared_ptr<IChromosome>>& population) const;
+  std::vector<std::shared_ptr<IChromosome>> RouletteWheelSelection();
+  void Crossover(std::vector<std::shared_ptr<IChromosome>>& population);
+  void Mutate(std::vector<std::shared_ptr<IChromosome>>& population);
+
+  std::vector<double> CalculateFitnessValue() const;
 };
 
 }  // namespace nn

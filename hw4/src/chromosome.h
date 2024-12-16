@@ -19,7 +19,7 @@ class IChromosome {
  public:
   virtual ~IChromosome() = default;
 
-  virtual void Print() const = 0;
+  virtual std::string ToString() const = 0;
 
  public:
   const std::vector<double>& get_genes() const;
@@ -50,7 +50,7 @@ class SgdHyperparametersKit final : public IChromosome {
   std::size_t get_hidden_layers() const;
   std::size_t get_neurons_per_hidden_layer() const;
 
-  void Print() const override {}  // TODO
+  std::string ToString() const override;
 };
 
 }  // namespace nn
