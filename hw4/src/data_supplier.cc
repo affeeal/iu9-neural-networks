@@ -12,10 +12,12 @@
 
 #include "perceptron.h"
 
-namespace hw4 {
+namespace nn {
 
 namespace {
 
+constexpr std::size_t kDigitsNumber = 10;
+constexpr std::size_t kScanSize = 784;
 constexpr std::size_t kColumnsCount = kScanSize + 1;
 
 std::vector<std::shared_ptr<const nn::IData>> ReadMnistCsv(
@@ -61,22 +63,40 @@ std::vector<std::shared_ptr<const nn::IData>> ReadMnistCsv(
 DataSupplier::DataSupplier(const std::string &train_path,
                            const std::string &test_path,
                            const double false_score, const double true_score) {
-  static constexpr std::size_t kTrainingInitialSize = 60'000;
+  static constexpr std::size_t kTrainInitialSize = 60'000;
   static constexpr std::size_t kValidationSize = 10'000;
-  static constexpr std::size_t kTestingSize = 10'000;
+  static constexpr std::size_t kTestSize = 10'000;
 
-  spdlog::info("Parsing training data...");
-  training_ = ReadMnistCsv(train_path, false_score, true_score);
-  assert(training_.size() == kTrainingInitialSize);
+  spdlog::info("Parsing train data...");
+  train_ = ReadMnistCsv(train_path, false_score, true_score);
+  assert(train_.size() == kTrainInitialSize);
 
-  validation_ = std::vector(
-      std::make_move_iterator(training_.rbegin()),
-      std::make_move_iterator(training_.rbegin() + kValidationSize));
-  training_.resize(kTrainingInitialSize - kValidationSize);
+  validation_ =
+      std::vector(std::make_move_iterator(train_.rbegin()),
+                  std::make_move_iterator(train_.rbegin() + kValidationSize));
+  train_.resize(kTrainInitialSize - kValidationSize);
 
-  spdlog::info("Parsing testing data...");
-  testing_ = ReadMnistCsv(test_path, false_score, true_score);
-  assert(testing_.size() == kTestingSize);
+  spdlog::info("Parsing test data...");
+  test_ = ReadMnistCsv(test_path, false_score, true_score);
+  assert(test_.size() == kTestSize);
 }
 
-}  // namespace hw4
+std::size_t DataSupplier::GetInputLayerSize() const { return kScanSize; }
+std::size_t DataSupplier::GetOutputLayerSize() const { return kDigitsNumber; }
+
+std::vector<std::shared_ptr<const nn::IData>> DataSupplier::GetTrainData()
+    const {
+  return train_;
+}
+
+std::vector<std::shared_ptr<const nn::IData>> DataSupplier::GetValidationData()
+    const {
+  return validation_;
+}
+
+std::vector<std::shared_ptr<const nn::IData>> DataSupplier::GetTestData()
+    const {
+  return test_;
+}
+
+}  // namespace nn

@@ -1,10 +1,15 @@
 #include <matplot/matplot.h>
+#include <spdlog/common.h>
+#include <spdlog/spdlog.h>
 
 #include <memory>
+#include <numeric>
 
 #include "activation_function.h"
 #include "cost_function.h"
 #include "data_supplier.h"
+#include "fitness_function.h"
+#include "genetic_algorithm.h"
 #include "perceptron.h"
 
 namespace {
@@ -23,16 +28,16 @@ void RunLeakyReluSoftmaxCrossEntropy() {
       .epochs = 20,
       .mini_batch_size = 100,
       .learning_rate = 0.1,
-      .monitor_training_cost = true,
-      .monitor_training_accuracy = true,
-      .monitor_testing_cost = true,
-      .monitor_testing_accuracy = true,
+      .monitor_train_cost = true,
+      .monitor_train_accuracy = true,
+      .monitor_test_cost = true,
+      .monitor_test_accuracy = true,
   };
 
   const auto data_supplier =
-      hw4::DataSupplier(kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
-  const auto training = data_supplier.GetTrainingData();
-  const auto testing = data_supplier.GetTestingData();
+      nn::DataSupplier(kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  const auto train = data_supplier.GetTrainData();
+  const auto test = data_supplier.GetTestData();
 
   auto cost_function = std::make_unique<nn::CrossEntropy>();
   auto activation_functions =
@@ -40,28 +45,27 @@ void RunLeakyReluSoftmaxCrossEntropy() {
   activation_functions.push_back(std::make_unique<nn::LeakyReLU>(0.01));
   activation_functions.push_back(std::make_unique<nn::Softmax>());
   const auto layers_sizes = std::vector<std::size_t>{
-      hw4::kScanSize, kHiddenLayerSize, hw4::kDigitsNumber};
+      data_supplier.GetInputLayerSize(), kHiddenLayerSize,
+      data_supplier.GetOutputLayerSize()};
 
   auto perceptron = nn::Perceptron(
       std::move(cost_function), std::move(activation_functions), layers_sizes);
-  const auto metrics =
-      perceptron.SgdAdam(training, testing, kCfg, 0.9, 0.999, 1e-8);
+  const auto metrics = perceptron.SgdAdam(train, test, kCfg, 0.9, 0.999, 1e-8);
 
-  matplot::title("Leaky ReLU, Softmax + Cross-entropy training, testing cost");
-  matplot::plot(metrics.training_cost)->display_name("Training data");
+  matplot::title("Leaky ReLU, Softmax + Cross-entropy train, test cost");
+  matplot::plot(metrics.train_cost)->display_name("Train data");
   matplot::hold(matplot::on);
-  matplot::plot(metrics.testing_cost)->display_name("Testing data");
+  matplot::plot(metrics.test_cost)->display_name("Test data");
   matplot::hold(matplot::off);
   matplot::legend({});
   matplot::xlabel("Epochs");
   matplot::ylabel("Cost");
   matplot::show();
 
-  matplot::title(
-      "Leaky ReLU, Softmax + Cross-entropy training, testing accuracy");
-  matplot::plot(metrics.training_accuracy)->display_name("Training data");
+  matplot::title("Leaky ReLU, Softmax + Cross-entropy train, test accuracy");
+  matplot::plot(metrics.train_accuracy)->display_name("Train data");
   matplot::hold(matplot::on);
-  matplot::plot(metrics.testing_accuracy)->display_name("Testing data");
+  matplot::plot(metrics.test_accuracy)->display_name("Test data");
   matplot::hold(matplot::off);
   matplot::legend({});
   matplot::xlabel("Epochs");
@@ -69,6 +73,27 @@ void RunLeakyReluSoftmaxCrossEntropy() {
   matplot::show();
 }
 
+void RunGeneticAlgorithm() {
+  auto data_supplier = std::make_unique<nn::DataSupplier>(
+      kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  auto fitness_function =
+      std::make_unique<nn::AccuracyOnTestData>(std::move(data_supplier));
+  const auto segments = std::vector<nn::Segment>{
+      {0.01, 0.03},  // kLearningRate
+      {10, 20},      // kEpochs
+      {1, 100},      // kMiniBatchSize
+      {0, 3},        // kHiddenLayer
+      {20, 40},      // kNeuronsPerHiddenLayer
+  };
+  auto genetic_algorithm =
+      nn::GeneticAlgorithm(std::move(fitness_function), segments, 10, 5);
+  genetic_algorithm.Run();
+}
+
 }  // namespace
 
-int main(int argc, char *argv[]) { RunLeakyReluSoftmaxCrossEntropy(); }
+int main(int argc, char* argv[]) {
+  spdlog::set_level(spdlog::level::debug);
+  RunGeneticAlgorithm();
+  // RunLeakyReluSoftmaxCrossEntropy();
+}

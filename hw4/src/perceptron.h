@@ -24,25 +24,28 @@ class IDataSupplier {
   virtual ~IDataSupplier() = default;
 
  public:
-  virtual std::vector<std::shared_ptr<const IData>> GetTrainingData() const = 0;
+  virtual std::size_t GetInputLayerSize() const = 0;
+  virtual std::size_t GetOutputLayerSize() const = 0;
+
+  virtual std::vector<std::shared_ptr<const IData>> GetTrainData() const = 0;
+  virtual std::vector<std::shared_ptr<const IData>> GetTestData() const = 0;
   virtual std::vector<std::shared_ptr<const IData>> GetValidationData()
       const = 0;
-  virtual std::vector<std::shared_ptr<const IData>> GetTestingData() const = 0;
 };
 
 struct SgdConfiguration final {
   std::size_t epochs;
   std::size_t mini_batch_size;
   double learning_rate;
-  bool monitor_training_cost;
-  bool monitor_training_accuracy;
-  bool monitor_testing_cost;
-  bool monitor_testing_accuracy;
+  bool monitor_train_cost;
+  bool monitor_train_accuracy;
+  bool monitor_test_cost;
+  bool monitor_test_accuracy;
 };
 
 struct Metric final {
-  std::vector<double> training_cost, training_accuracy;
-  std::vector<double> testing_cost, testing_accuracy;
+  std::vector<double> train_cost, train_accuracy;
+  std::vector<double> test_cost, test_accuracy;
 };
 
 class Perceptron final {
@@ -62,28 +65,30 @@ class Perceptron final {
 
   Eigen::VectorXd Feedforward(const Eigen::VectorXd &x) const;
 
-  Metric Sgd(const std::vector<std::shared_ptr<const IData>> &training,
-             const std::vector<std::shared_ptr<const IData>> &testing,
+  Metric Sgd(const std::vector<std::shared_ptr<const IData>> &train,
+             const std::vector<std::shared_ptr<const IData>> &test,
              const SgdConfiguration &cfg);
 
-  Metric SgdNag(const std::vector<std::shared_ptr<const IData>> &training,
-                const std::vector<std::shared_ptr<const IData>> &testing,
+  Metric SgdNag(const std::vector<std::shared_ptr<const IData>> &train,
+                const std::vector<std::shared_ptr<const IData>> &test,
                 const SgdConfiguration &cfg, const double gamma);
 
-  Metric SgdAdagrad(const std::vector<std::shared_ptr<const IData>> &training,
-                    const std::vector<std::shared_ptr<const IData>> &testing,
+  Metric SgdAdagrad(const std::vector<std::shared_ptr<const IData>> &train,
+                    const std::vector<std::shared_ptr<const IData>> &test,
                     const SgdConfiguration &cfg, const double epsilon);
 
-  Metric SgdAdam(const std::vector<std::shared_ptr<const IData>> &training,
-                 const std::vector<std::shared_ptr<const IData>> &testing,
+  Metric SgdAdam(const std::vector<std::shared_ptr<const IData>> &train,
+                 const std::vector<std::shared_ptr<const IData>> &test,
                  const SgdConfiguration &cfg, const double beta1,
                  const double beta2, const double epsilon);
 
  private:
-  template <typename Iter>  // TODO: Use concepts
+  // TODO: Use concepts
+  template <typename Iter>
   void UpdateSgd(const Iter mini_batch_begin, const Iter mini_batch_end,
                  const std::size_t mini_batch_size, const double learning_rate);
 
+  // EMA means Exponential Moving Average
   template <typename Iter>
   void UpdateSgdNag(std::vector<Eigen::MatrixXd> &delta_weights_ema,
                     std::vector<Eigen::VectorXd> &delta_biases_ema,
@@ -130,8 +135,8 @@ class Perceptron final {
   Metric CreateMetric(const SgdConfiguration &cfg) const;
 
   void WriteMetric(Metric &metric, const std::size_t epoch,
-                   const std::vector<std::shared_ptr<const IData>> &training,
-                   const std::vector<std::shared_ptr<const IData>> &testing,
+                   const std::vector<std::shared_ptr<const IData>> &train,
+                   const std::vector<std::shared_ptr<const IData>> &test,
                    const SgdConfiguration &cfg) const;
 
   template <typename Iter>
