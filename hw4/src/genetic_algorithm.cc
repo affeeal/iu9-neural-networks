@@ -110,7 +110,7 @@ GeneticAlgorithm::RouletteWheelSelection() {
 void GeneticAlgorithm::Crossover(
     std::vector<std::shared_ptr<IChromosome>>& population) {
   static const auto parents_number = static_cast<std::size_t>(
-      cfg_.crossover_probability * cfg_.population_size);
+      cfg_.crossover_proportion * cfg_.population_size);
   static auto distribution = std::uniform_real_distribution<>{0.0, 1.0};
   for (std::size_t i = 0; i + 1 < parents_number; i += 2) {
     const auto alpha = distribution(engine_);
@@ -141,8 +141,8 @@ void GeneticAlgorithm::Crossover(
 
 void GeneticAlgorithm::Mutate(
     std::vector<std::shared_ptr<IChromosome>>& population) {
-  static const auto mutants_number = static_cast<std::size_t>(
-      cfg_.mutation_probability * cfg_.population_size);
+  static const auto mutants_number =
+      static_cast<std::size_t>(cfg_.mutation_proportion * cfg_.population_size);
   static auto distribution =
       std::uniform_int_distribution<>{0, static_cast<int>(genes_number_) - 1};
   for (std::size_t i = 0; i < mutants_number; ++i) {

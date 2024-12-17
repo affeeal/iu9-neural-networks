@@ -25,8 +25,8 @@ class GeneticAlgorithm final {
   struct Configuration final {
     std::size_t populations_number;
     std::size_t population_size;
-    double crossover_probability;
-    double mutation_probability;
+    double crossover_proportion;
+    double mutation_proportion;
   };
 
  private:

@@ -51,9 +51,7 @@ double AccuracyOnTestData::Assess(const IChromosome& chromosome) const {
   const auto test_data = data_supplier_->GetTestData();
 
   auto metrics = perceptron.Sgd(train_data, test_data, cfg);
-  const auto accuracy = metrics.test_accuracy.back() / test_data.size();
-  assert(0 <= accuracy && accuracy <= 1);
-  return std::exp(1 / (1 - accuracy + 1e-8));
+  return std::exp(1 / (metrics.test_cost.back() + 1e-8));
 }
 
 }  // namespace nn
