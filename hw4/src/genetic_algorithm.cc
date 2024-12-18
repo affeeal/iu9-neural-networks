@@ -51,8 +51,8 @@ GeneticAlgorithm::GeneticAlgorithm(
 }
 
 std::shared_ptr<IChromosome> GeneticAlgorithm::Run() {
-  for (std::size_t i = 1; i <= cfg_.populations_number; ++i) {
-    spdlog::info("Population {}/{}", i, cfg_.populations_number);
+  for (std::size_t i = 0; i < cfg_.populations_number; ++i) {
+    spdlog::info("Population {}/{}:", i, cfg_.populations_number);
     for (std::size_t j = 0; j < cfg_.population_size; ++j) {
       spdlog::info("Chromosome {}/{}:\n{}", j + 1, cfg_.population_size,
                    population_[j]->ToString());
@@ -67,10 +67,21 @@ std::shared_ptr<IChromosome> GeneticAlgorithm::Run() {
     population_ = std::move(new_population);
   }
 
+  spdlog::info("Population {}/{}:", cfg_.populations_number,
+               cfg_.populations_number);
+  for (std::size_t j = 0; j < cfg_.population_size; ++j) {
+    spdlog::info("Chromosome {}/{}:\n{}", j + 1, cfg_.population_size,
+                 population_[j]->ToString());
+  }
+
   const auto fitness_values = CalculateFitnessValue();
   const auto fittest_chromosome_index = std::distance(
       fitness_values.cbegin(),
       std::max_element(fitness_values.cbegin(), fitness_values.cend()));
+
+  spdlog::info("Chromosome {} (the fittest one):\n{}",
+               fittest_chromosome_index + 1,
+               population_[fittest_chromosome_index]->ToString());
   return population_[fittest_chromosome_index];
 }
 
@@ -81,7 +92,7 @@ GeneticAlgorithm::RouletteWheelSelection() {
   const auto average_fitness_value =
       std::reduce(fitness_values.cbegin(), fitness_values.cend()) /
       fitness_values.size();
-  spdlog::info("Population average fitness: {}", average_fitness_value);
+  spdlog::info("Population average fitness value: {}", average_fitness_value);
 
   auto partial_sum = std::vector<double>(cfg_.population_size);
   std::partial_sum(fitness_values.cbegin(), fitness_values.cend(),
@@ -160,8 +171,8 @@ std::vector<double> GeneticAlgorithm::CalculateFitnessValue() const {
   fitness_values.reserve(cfg_.population_size);
   for (std::size_t i = 0; i < cfg_.population_size; ++i) {
     fitness_values.push_back(fitness_function_->Assess(*population_[i]));
-    spdlog::info("Chromosome {}/{} fittness: {}", i + 1, cfg_.population_size,
-                 fitness_values.back());
+    spdlog::info("Chromosome {}/{} fittness value: {}", i + 1,
+                 cfg_.population_size, fitness_values.back());
   }
   return fitness_values;
 }

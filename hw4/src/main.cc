@@ -74,6 +74,13 @@ void RunLeakyReluSoftmaxCrossEntropy() {
 }
 
 void RunGeneticAlgorithm() {
+  // The fittest candidate (test cost 0.149404):
+  // - Learning rate: 0.0217045;
+  // - Epochs: 20;
+  // - Mini-batch size: 5;
+  // - Hidden layers: 1;
+  // - Neurons per hidden layer: 45.
+
   auto data_supplier = std::make_unique<nn::DataSupplier>(
       kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
   auto fitness_function =
