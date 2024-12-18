@@ -73,7 +73,7 @@ void RunLeakyReluSoftmaxCrossEntropy() {
   matplot::show();
 }
 
-void RunGeneticAlgorithm() {
+void RunGeneticAlgorithmSgd() {
   // The fittest candidate (test cost 0.149404):
   // - Learning rate: 0.0217045;
   // - Epochs: 20;
@@ -84,7 +84,7 @@ void RunGeneticAlgorithm() {
   auto data_supplier = std::make_unique<nn::DataSupplier>(
       kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
   auto fitness_function =
-      std::make_unique<nn::AccuracyOnTestData>(std::move(data_supplier));
+      std::make_unique<nn::SgdTestDataCost>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
       {0.01, 0.03},  // kLearningRate
       {5, 50},       // kEpochs
@@ -98,12 +98,40 @@ void RunGeneticAlgorithm() {
       .crossover_proportion = 0.4,
       .mutation_proportion = 0.15,
   };
-  auto genetic_algorithm = nn::GeneticAlgorithm(
-      std::move(fitness_function),
-      nn::ChromosomeSubclass::kSgdHyperparametersKit, segments, cfg);
+  auto genetic_algorithm =
+      nn::GeneticAlgorithm(std::move(fitness_function),
+                           nn::ChromosomeSubclass::kSgdKit, segments, cfg);
+  genetic_algorithm.Run();
+}
+
+void RunGeneticAlgorithmSgdNag() {
+  auto data_supplier = std::make_unique<nn::DataSupplier>(
+      kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  auto fitness_function =
+      std::make_unique<nn::SgdNagTestDataCost>(std::move(data_supplier));
+  const auto segments = std::vector<nn::Segment>{
+      {0.001, 0.01},  // kLearningRate
+      {1, 100},       // kEpochs
+      {1, 100},       // kMiniBatchSize
+      {0, 5},         // kHiddenLayer
+      {10, 50},       // kNeuronsPerHiddenLayer
+      {0.9, 0.95},    // kGamma
+  };
+  const auto cfg = nn::GeneticAlgorithm::Configuration{
+      .populations_number = 5,
+      .population_size = 45,
+      .crossover_proportion = 0.4,
+      .mutation_proportion = 0.15,
+  };
+  auto genetic_algorithm =
+      nn::GeneticAlgorithm(std::move(fitness_function),
+                           nn::ChromosomeSubclass::kSgdNagKit, segments, cfg);
   genetic_algorithm.Run();
 }
 
 }  // namespace
 
-int main() { RunGeneticAlgorithm(); }
+int main() {
+  // RunLeakyReluSoftmaxCrossEntropy();
+  // RunGeneticAlgorithmSgdNag();
+}

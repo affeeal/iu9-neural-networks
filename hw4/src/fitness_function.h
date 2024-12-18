@@ -12,15 +12,23 @@ class IFitnessFunction {
  public:
   virtual ~IFitnessFunction() = default;
 
- public:
   virtual double Assess(const IChromosome& chromosome) const = 0;
 };
 
-class AccuracyOnTestData final : public IFitnessFunction {
+class SgdTestDataCost final : public IFitnessFunction {
   std::unique_ptr<IDataSupplier> data_supplier_;
 
  public:
-  AccuracyOnTestData(std::unique_ptr<IDataSupplier>&& data_supplier);
+  SgdTestDataCost(std::unique_ptr<IDataSupplier>&& data_supplier);
+
+  double Assess(const IChromosome& chromosome) const override;
+};
+
+class SgdNagTestDataCost final : public IFitnessFunction {
+  std::unique_ptr<IDataSupplier> data_supplier_;
+
+ public:
+  SgdNagTestDataCost(std::unique_ptr<IDataSupplier>&& data_supplier);
 
   double Assess(const IChromosome& chromosome) const override;
 };

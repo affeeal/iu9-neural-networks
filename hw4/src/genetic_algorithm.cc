@@ -4,10 +4,12 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <map>
 #include <numeric>
 #include <random>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "chromosome.h"
 
@@ -87,12 +89,14 @@ std::shared_ptr<IChromosome> GeneticAlgorithm::Run() {
 
 std::vector<std::shared_ptr<IChromosome>>
 GeneticAlgorithm::RouletteWheelSelection() {
-  const auto fitness_values = CalculateFitnessValue();
-
-  const auto average_fitness_value =
-      std::reduce(fitness_values.cbegin(), fitness_values.cend()) /
-      fitness_values.size();
-  spdlog::info("Population average fitness value: {}", average_fitness_value);
+  auto nonfinite_fitness_chromosome_indices = std::unordered_set<std::size_t>{};
+  auto fitness_values = CalculateFitnessValue();
+  for (std::size_t i = 0; i < cfg_.population_size; ++i) {
+    if (!std::isfinite(fitness_values[i])) {
+      fitness_values[i] = 0;
+      nonfinite_fitness_chromosome_indices.insert(i);
+    }
+  }
 
   auto partial_sum = std::vector<double>(cfg_.population_size);
   std::partial_sum(fitness_values.cbegin(), fitness_values.cend(),
@@ -101,7 +105,9 @@ GeneticAlgorithm::RouletteWheelSelection() {
   auto partial_sum_to_chromosome =
       std::map<double, std::shared_ptr<IChromosome>>{};
   for (std::size_t i = 0; i < cfg_.population_size; ++i) {
-    partial_sum_to_chromosome.insert({partial_sum[i], population_[i]});
+    if (nonfinite_fitness_chromosome_indices.count(i) == 0) {
+      partial_sum_to_chromosome.insert({partial_sum[i], population_[i]});
+    }
   }
 
   auto selected_chromosomes = std::vector<std::shared_ptr<IChromosome>>{};
