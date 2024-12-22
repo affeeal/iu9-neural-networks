@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <iostream>
 
 namespace nn {
 
@@ -79,6 +80,16 @@ class Tanh final : public IActivationFunction {
 class Softmax final : public IActivationFunction {
  public:
   Eigen::VectorXd Apply(const Eigen::VectorXd &z) override {
+    /*
+     * FIXME: При больших значениях координат z std::exp возвращает inf, из-за
+     * чего всё потом падает. Может, что-то вроде такого поможет:
+     *
+     *  const auto max_coeff = z.array().maxCoeff();
+     *  const auto delimiter = (max_coeff > 512 ? std::pow(10,
+     *      std::log10(max_coeff)) : 1);
+     *  const auto e_z = (z.array() / delimiter).exp();
+     */
+
     const auto e_z = z.array().exp();
     return e_z / e_z.sum();
   }

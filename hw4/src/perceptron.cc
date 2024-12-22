@@ -54,10 +54,10 @@ Metric Perceptron::Sgd(const std::vector<std::shared_ptr<const IData>> &train,
 
   auto train_shuffled = std::vector(train.begin(), train.end());
   auto metric = CreateMetric(cfg);
-  for (std::size_t epoch = 1; epoch <= cfg.epochs; ++epoch) {
+  for (std::size_t i = 1; i <= cfg.epochs; ++i) {
     std::shuffle(train_shuffled.begin(), train_shuffled.end(), generator_);
     auto it = train_shuffled.begin();
-    for (std::size_t i = 0; i < whole_mini_batches_number; ++i) {
+    for (std::size_t j = 0; j < whole_mini_batches_number; ++j) {
       auto end = it + cfg.mini_batch_size;
       UpdateSgd(it, end, cfg.mini_batch_size, cfg.learning_rate);
       it = std::move(end);
@@ -67,7 +67,7 @@ Metric Perceptron::Sgd(const std::vector<std::shared_ptr<const IData>> &train,
       UpdateSgd(it, it + remainder_mini_batch_size, remainder_mini_batch_size,
                 cfg.learning_rate);
     }
-    WriteMetric(metric, epoch, train, test, cfg);
+    WriteMetric(metric, i, train, test, cfg);
   }
 
   return metric;
@@ -88,10 +88,10 @@ Metric Perceptron::SgdNag(
   auto [delta_weights_ema, delta_biases_ema] = CreateParameters(0);
   auto train_shuffled = std::vector(train.begin(), train.end());
   auto metric = CreateMetric(cfg);
-  for (std::size_t epoch = 1; epoch <= cfg.epochs; ++epoch) {
+  for (std::size_t i = 1; i <= cfg.epochs; ++i) {
     std::shuffle(train_shuffled.begin(), train_shuffled.end(), generator_);
     auto it = train_shuffled.begin();
-    for (std::size_t i = 0; i < whole_mini_batches_number; ++i) {
+    for (std::size_t j = 0; j < whole_mini_batches_number; ++j) {
       auto end = it + cfg.mini_batch_size;
       UpdateSgdNag(delta_weights_ema, delta_biases_ema, it, end,
                    cfg.mini_batch_size, cfg.learning_rate, gamma);
@@ -103,7 +103,7 @@ Metric Perceptron::SgdNag(
                    it + remainder_mini_batch_size, remainder_mini_batch_size,
                    cfg.learning_rate, gamma);
     }
-    WriteMetric(metric, epoch, train, test, cfg);
+    WriteMetric(metric, i, train, test, cfg);
   }
 
   return metric;
@@ -125,7 +125,7 @@ Metric Perceptron::SgdAdagrad(
       CreateParameters(epsilon);
   auto train_shuffled = std::vector(train.begin(), train.end());
   auto metric = CreateMetric(cfg);
-  for (std::size_t epoch = 1; epoch < cfg.epochs; ++epoch) {
+  for (std::size_t i = 1; i <= cfg.epochs; ++i) {
     std::shuffle(train_shuffled.begin(), train_shuffled.end(), generator_);
     auto it = train_shuffled.begin();
     for (std::size_t i = 0; i < whole_mini_batches_number; ++i) {
@@ -142,7 +142,7 @@ Metric Perceptron::SgdAdagrad(
                        it + remainder_mini_batch_size,
                        remainder_mini_batch_size, cfg.learning_rate);
     }
-    WriteMetric(metric, epoch, train, test, cfg);
+    WriteMetric(metric, i, train, test, cfg);
   }
 
   return metric;
@@ -172,15 +172,15 @@ Metric Perceptron::SgdAdam(
       CreateParameters(epsilon);
   auto train_shuffled = std::vector(train.begin(), train.end());
   auto metric = CreateMetric(cfg);
-  for (std::size_t epoch = 1; epoch <= cfg.epochs; ++epoch) {
+  for (std::size_t i = 1; i <= cfg.epochs; ++i) {
     std::shuffle(train_shuffled.begin(), train_shuffled.end(), generator_);
     auto it = train_shuffled.begin();
-    for (std::size_t i = 0; i < whole_mini_batches_number; ++i) {
+    for (std::size_t j = 0; j < whole_mini_batches_number; ++j) {
       auto end = it + cfg.mini_batch_size;
       UpdateSgdAdam(weights_gradient_ema, biases_gradient_ema,
                     weights_squared_gradient_ema, biases_squared_gradient_ema,
-                    it, end, cfg.mini_batch_size, epoch, cfg.learning_rate,
-                    beta1, beta2);
+                    it, end, cfg.mini_batch_size, i, cfg.learning_rate, beta1,
+                    beta2);
       it = std::move(end);
     }
 
@@ -188,10 +188,10 @@ Metric Perceptron::SgdAdam(
       UpdateSgdAdam(weights_gradient_ema, biases_gradient_ema,
                     weights_squared_gradient_ema, biases_squared_gradient_ema,
                     it, it + remainder_mini_batch_size,
-                    remainder_mini_batch_size, epoch, cfg.learning_rate, beta1,
+                    remainder_mini_batch_size, i, cfg.learning_rate, beta1,
                     beta2);
     }
-    WriteMetric(metric, epoch, train, test, cfg);
+    WriteMetric(metric, i, train, test, cfg);
   }
 
   return metric;
@@ -202,7 +202,7 @@ void Perceptron::UpdateSgd(const Iter mini_batch_begin,
                            const Iter mini_batch_end,
                            const std::size_t mini_batch_size,
                            const double learning_rate) {
-  auto [weights_gradient, biases_gradient] =
+  const auto [weights_gradient, biases_gradient] =
       GradientWrtParameters(mini_batch_begin, mini_batch_end, mini_batch_size);
 
   for (std::size_t i = 0; i < connections_number_; ++i) {
@@ -325,7 +325,7 @@ Perceptron::Parameters Perceptron::CreateParameters(
     biases.push_back(std::move(v));
   }
 
-  return {weights, biases};
+  return {std::move(weights), std::move(biases)};
 }
 
 template <typename Iter>
@@ -350,7 +350,7 @@ Perceptron::Parameters Perceptron::GradientWrtParameters(
     biases_gradient[i] *= factor;
   }
 
-  return {weights_gradient, biases_gradient};
+  return {std::move(weights_gradient), std::move(biases_gradient)};
 }
 
 Perceptron::Parameters Perceptron::Backpropagation(
@@ -403,7 +403,7 @@ Perceptron::FeedforwardDetailed(const Eigen::VectorXd &x) const {
   }
   activations.push_back(std::move(activation));
 
-  return {linear_values, activations};
+  return {std::move(linear_values), std::move(activations)};
 }
 
 Metric Perceptron::CreateMetric(const SgdConfiguration &cfg) const {
@@ -429,7 +429,7 @@ void Perceptron::WriteMetric(
     const std::vector<std::shared_ptr<const IData>> &test,
     const SgdConfiguration &cfg) const {
   std::stringstream oss;
-  oss << "Epoch " << epoch << ";";
+  oss << "Epoch " << epoch << "/" << cfg.epochs << ";";
   if (cfg.monitor_train_cost) {
     const auto train_cost = CalculateCost(train.begin(), train.end());
     metric.train_cost.push_back(train_cost);

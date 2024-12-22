@@ -26,7 +26,7 @@ void RunLeakyReluSoftmaxCrossEntropy() {
   constexpr std::size_t kHiddenLayerSize = 40;
   constexpr static auto kCfg = nn::SgdConfiguration{
       .epochs = 20,
-      .mini_batch_size = 100,
+      .mini_batch_size = 10,
       .learning_rate = 0.1,
       .monitor_train_cost = true,
       .monitor_train_accuracy = true,
@@ -50,7 +50,7 @@ void RunLeakyReluSoftmaxCrossEntropy() {
 
   auto perceptron = nn::Perceptron(
       std::move(cost_function), std::move(activation_functions), layers_sizes);
-  const auto metrics = perceptron.SgdAdam(train, test, kCfg, 0.9, 0.999, 1e-8);
+  const auto metrics = perceptron.Sgd(train, test, kCfg);
 
   matplot::title("Leaky ReLU, Softmax + Cross-entropy train, test cost");
   matplot::plot(metrics.train_cost)->display_name("Train data");
@@ -74,17 +74,19 @@ void RunLeakyReluSoftmaxCrossEntropy() {
 }
 
 void RunGeneticAlgorithmSgd() {
-  // The fittest candidate (test cost 0.149404):
-  // - Learning rate: 0.0217045;
-  // - Epochs: 20;
-  // - Mini-batch size: 5;
-  // - Hidden layers: 1;
-  // - Neurons per hidden layer: 45.
+  /*
+   * The fittest candidate (test cost 0.149404):
+   * Learning rate: 0.0217045;
+   * Epochs: 20;
+   * Mini-batch size: 5;
+   * Hidden layers: 1;
+   * Neurons per hidden layer: 45.
+   */
 
   auto data_supplier = std::make_unique<nn::DataSupplier>(
       kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
   auto fitness_function =
-      std::make_unique<nn::SgdTestDataCost>(std::move(data_supplier));
+      std::make_unique<nn::SgdFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
       {0.01, 0.03},  // kLearningRate
       {5, 50},       // kEpochs
@@ -98,24 +100,57 @@ void RunGeneticAlgorithmSgd() {
       .crossover_proportion = 0.4,
       .mutation_proportion = 0.15,
   };
-  auto genetic_algorithm =
-      nn::GeneticAlgorithm(std::move(fitness_function),
-                           nn::ChromosomeSubclass::kSgdKit, segments, cfg);
+  auto genetic_algorithm = nn::GeneticAlgorithm(
+      std::move(fitness_function),
+      nn::ChromosomeSubclass::kSgdHyperparametersKit, segments, cfg);
   genetic_algorithm.Run();
 }
 
 void RunGeneticAlgorithmSgdNag() {
+  /*
+   * The fittest candidate (test cost 0.149404):
+   * Learning rate: 0.0215092;
+   * Epochs: 39;
+   * Mini-batch size: 64;
+   * Hidden layers: 1;
+   * Neurons per hidden layer: 24;
+   * Gamma: 0.900000
+   */
+
   auto data_supplier = std::make_unique<nn::DataSupplier>(
       kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
   auto fitness_function =
-      std::make_unique<nn::SgdNagTestDataCost>(std::move(data_supplier));
+      std::make_unique<nn::SgdNagFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
-      {0.001, 0.01},  // kLearningRate
-      {1, 100},       // kEpochs
-      {1, 100},       // kMiniBatchSize
-      {0, 5},         // kHiddenLayer
-      {10, 50},       // kNeuronsPerHiddenLayer
-      {0.9, 0.95},    // kGamma
+      {0.001, 0.1},  // kLearningRate
+      {1, 100},      // kEpochs
+      {1, 100},      // kMiniBatchSize
+      {0, 3},        // kHiddenLayer
+      {10, 30},      // kNeuronsPerHiddenLayer
+  };
+  const auto cfg = nn::GeneticAlgorithm::Configuration{
+      .populations_number = 5,
+      .population_size = 60,
+      .crossover_proportion = 0.4,
+      .mutation_proportion = 0.15,
+  };
+  auto genetic_algorithm = nn::GeneticAlgorithm(
+      std::move(fitness_function),
+      nn::ChromosomeSubclass::kSgdHyperparametersKit, segments, cfg);
+  genetic_algorithm.Run();
+}
+
+void RunGeneticAlgorithmSgdAdagrad() {
+  auto data_supplier = std::make_unique<nn::DataSupplier>(
+      kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  auto fitness_function =
+      std::make_unique<nn::SgdAdagradFitness>(std::move(data_supplier));
+  const auto segments = std::vector<nn::Segment>{
+      {0.001, 10},  // kLearningRate
+      {100, 100},   // kEpochs
+      {10, 10},     // kMiniBatchSize
+      {0, 3},       // kHiddenLayer
+      {10, 30},     // kNeuronsPerHiddenLayer
   };
   const auto cfg = nn::GeneticAlgorithm::Configuration{
       .populations_number = 5,
@@ -123,15 +158,36 @@ void RunGeneticAlgorithmSgdNag() {
       .crossover_proportion = 0.4,
       .mutation_proportion = 0.15,
   };
-  auto genetic_algorithm =
-      nn::GeneticAlgorithm(std::move(fitness_function),
-                           nn::ChromosomeSubclass::kSgdNagKit, segments, cfg);
+  auto genetic_algorithm = nn::GeneticAlgorithm(
+      std::move(fitness_function),
+      nn::ChromosomeSubclass::kSgdHyperparametersKit, segments, cfg);
+  genetic_algorithm.Run();
+}
+
+void RunGeneticAlgorithmSgdAdam() {
+  auto data_supplier = std::make_unique<nn::DataSupplier>(
+      kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  auto fitness_function =
+      std::make_unique<nn::SgdAdamFitness>(std::move(data_supplier));
+  const auto segments = std::vector<nn::Segment>{
+      {0.001, 0.1},  // kLearningRate
+      {20, 100},     // kEpochs
+      {1, 100},      // kMiniBatchSize
+      {0, 3},        // kHiddenLayer
+      {10, 30},      // kNeuronsPerHiddenLayer
+  };
+  const auto cfg = nn::GeneticAlgorithm::Configuration{
+      .populations_number = 5,
+      .population_size = 45,
+      .crossover_proportion = 0.4,
+      .mutation_proportion = 0.15,
+  };
+  auto genetic_algorithm = nn::GeneticAlgorithm(
+      std::move(fitness_function),
+      nn::ChromosomeSubclass::kSgdHyperparametersKit, segments, cfg);
   genetic_algorithm.Run();
 }
 
 }  // namespace
 
-int main() {
-  // RunLeakyReluSoftmaxCrossEntropy();
-  // RunGeneticAlgorithmSgdNag();
-}
+int main() { RunGeneticAlgorithmSgdAdam(); }

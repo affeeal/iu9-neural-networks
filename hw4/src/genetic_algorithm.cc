@@ -9,7 +9,6 @@
 #include <numeric>
 #include <random>
 #include <stdexcept>
-#include <unordered_set>
 
 #include "chromosome.h"
 
@@ -17,9 +16,9 @@ namespace nn {
 
 Segment::Segment(const double left, const double right)
     : left_(left), right_(right) {
-  if (left_ >= right_) {
+  if (left_ > right_) {
     throw std::runtime_error(
-        "The left border must be strictly less than the right one");
+        "The left border must be less or equal than the right one");
   }
 }
 
@@ -89,12 +88,10 @@ std::shared_ptr<IChromosome> GeneticAlgorithm::Run() {
 
 std::vector<std::shared_ptr<IChromosome>>
 GeneticAlgorithm::RouletteWheelSelection() {
-  auto nonfinite_fitness_chromosome_indices = std::unordered_set<std::size_t>{};
   auto fitness_values = CalculateFitnessValue();
   for (std::size_t i = 0; i < cfg_.population_size; ++i) {
     if (!std::isfinite(fitness_values[i])) {
       fitness_values[i] = 0;
-      nonfinite_fitness_chromosome_indices.insert(i);
     }
   }
 
@@ -105,9 +102,7 @@ GeneticAlgorithm::RouletteWheelSelection() {
   auto partial_sum_to_chromosome =
       std::map<double, std::shared_ptr<IChromosome>>{};
   for (std::size_t i = 0; i < cfg_.population_size; ++i) {
-    if (nonfinite_fitness_chromosome_indices.count(i) == 0) {
-      partial_sum_to_chromosome.insert({partial_sum[i], population_[i]});
-    }
+    partial_sum_to_chromosome.insert({partial_sum[i], population_[i]});
   }
 
   auto selected_chromosomes = std::vector<std::shared_ptr<IChromosome>>{};

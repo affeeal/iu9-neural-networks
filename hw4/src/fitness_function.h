@@ -15,20 +15,40 @@ class IFitnessFunction {
   virtual double Assess(const IChromosome& chromosome) const = 0;
 };
 
-class SgdTestDataCost final : public IFitnessFunction {
-  std::unique_ptr<IDataSupplier> data_supplier_;
-
+class ISgdFitness : public IFitnessFunction {
  public:
-  SgdTestDataCost(std::unique_ptr<IDataSupplier>&& data_supplier);
+  virtual ~ISgdFitness() = default;
+
+  ISgdFitness(std::unique_ptr<IDataSupplier>&& data_supplier);
+
+ protected:
+  std::unique_ptr<IDataSupplier> data_supplier_;
+};
+
+class SgdFitness final : public ISgdFitness {
+ public:
+  using ISgdFitness::ISgdFitness;
 
   double Assess(const IChromosome& chromosome) const override;
 };
 
-class SgdNagTestDataCost final : public IFitnessFunction {
-  std::unique_ptr<IDataSupplier> data_supplier_;
-
+class SgdNagFitness final : public ISgdFitness {
  public:
-  SgdNagTestDataCost(std::unique_ptr<IDataSupplier>&& data_supplier);
+  using ISgdFitness::ISgdFitness;
+
+  double Assess(const IChromosome& chromosome) const override;
+};
+
+class SgdAdagradFitness final : public ISgdFitness {
+ public:
+  using ISgdFitness::ISgdFitness;
+
+  double Assess(const IChromosome& chromosome) const override;
+};
+
+class SgdAdamFitness final : public ISgdFitness {
+ public:
+  using ISgdFitness::ISgdFitness;
 
   double Assess(const IChromosome& chromosome) const override;
 };
