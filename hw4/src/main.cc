@@ -74,29 +74,20 @@ void RunLeakyReluSoftmaxCrossEntropy() {
 }
 
 void RunGeneticAlgorithmSgd() {
-  /*
-   * The fittest candidate (test cost 0.149404):
-   * Learning rate: 0.0217045;
-   * Epochs: 20;
-   * Mini-batch size: 5;
-   * Hidden layers: 1;
-   * Neurons per hidden layer: 45.
-   */
-
   auto data_supplier = std::make_unique<nn::DataSupplier>(
       kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
   auto fitness_function =
       std::make_unique<nn::SgdFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
-      {0.01, 0.03},  // kLearningRate
-      {5, 50},       // kEpochs
-      {1, 100},      // kMiniBatchSize
-      {0, 3},        // kHiddenLayer
-      {10, 50},      // kNeuronsPerHiddenLayer
+      {0.001, 1}, // kLearningRate
+      {100, 100}, // kEpochs
+      {100, 100}, // kMiniBatchSize
+      {0, 4},     // kHiddenLayer
+      {10, 40},   // kNeuronsPerHiddenLayer
   };
   const auto cfg = nn::GeneticAlgorithm::Configuration{
-      .populations_number = 5,
-      .population_size = 45,
+      .populations_number = 10,
+      .population_size = 60,
       .crossover_proportion = 0.4,
       .mutation_proportion = 0.15,
   };
@@ -107,29 +98,19 @@ void RunGeneticAlgorithmSgd() {
 }
 
 void RunGeneticAlgorithmSgdNag() {
-  /*
-   * The fittest candidate (test cost 0.149404):
-   * Learning rate: 0.0215092;
-   * Epochs: 39;
-   * Mini-batch size: 64;
-   * Hidden layers: 1;
-   * Neurons per hidden layer: 24;
-   * Gamma: 0.900000
-   */
-
   auto data_supplier = std::make_unique<nn::DataSupplier>(
       kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
   auto fitness_function =
       std::make_unique<nn::SgdNagFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
-      {0.001, 0.1},  // kLearningRate
-      {1, 100},      // kEpochs
-      {1, 100},      // kMiniBatchSize
-      {0, 3},        // kHiddenLayer
-      {10, 30},      // kNeuronsPerHiddenLayer
+      {0.001, 1}, // kLearningRate
+      {100, 100}, // kEpochs
+      {100, 100}, // kMiniBatchSize
+      {0, 4},     // kHiddenLayer
+      {10, 40},   // kNeuronsPerHiddenLayer
   };
   const auto cfg = nn::GeneticAlgorithm::Configuration{
-      .populations_number = 5,
+      .populations_number = 10,
       .population_size = 60,
       .crossover_proportion = 0.4,
       .mutation_proportion = 0.15,
@@ -146,15 +127,15 @@ void RunGeneticAlgorithmSgdAdagrad() {
   auto fitness_function =
       std::make_unique<nn::SgdAdagradFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
-      {0.001, 10},  // kLearningRate
-      {100, 100},   // kEpochs
-      {10, 10},     // kMiniBatchSize
-      {0, 3},       // kHiddenLayer
-      {10, 30},     // kNeuronsPerHiddenLayer
+      {0.001, 1}, // kLearningRate
+      {100, 100}, // kEpochs
+      {100, 100}, // kMiniBatchSize
+      {0, 4},     // kHiddenLayer
+      {10, 40},   // kNeuronsPerHiddenLayer
   };
   const auto cfg = nn::GeneticAlgorithm::Configuration{
-      .populations_number = 5,
-      .population_size = 45,
+      .populations_number = 10,
+      .population_size = 60,
       .crossover_proportion = 0.4,
       .mutation_proportion = 0.15,
   };
@@ -170,15 +151,15 @@ void RunGeneticAlgorithmSgdAdam() {
   auto fitness_function =
       std::make_unique<nn::SgdAdamFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
-      {0.001, 0.1},  // kLearningRate
-      {20, 100},     // kEpochs
-      {1, 100},      // kMiniBatchSize
-      {0, 3},        // kHiddenLayer
-      {10, 30},      // kNeuronsPerHiddenLayer
+      {0.001, 1}, // kLearningRate
+      {100, 100}, // kEpochs
+      {100, 100}, // kMiniBatchSize
+      {0, 4},     // kHiddenLayer
+      {10, 40},   // kNeuronsPerHiddenLayer
   };
   const auto cfg = nn::GeneticAlgorithm::Configuration{
-      .populations_number = 5,
-      .population_size = 45,
+      .populations_number = 10,
+      .population_size = 60,
       .crossover_proportion = 0.4,
       .mutation_proportion = 0.15,
   };
@@ -190,4 +171,9 @@ void RunGeneticAlgorithmSgdAdam() {
 
 }  // namespace
 
-int main() { RunGeneticAlgorithmSgdAdam(); }
+int main() {
+  RunGeneticAlgorithmSgd();
+  RunGeneticAlgorithmSgdNag();
+  RunGeneticAlgorithmSgdAdagrad();
+  RunGeneticAlgorithmSgdAdam();
+}
