@@ -74,6 +74,19 @@ void RunLeakyReluSoftmaxCrossEntropy() {
 }
 
 void RunGeneticAlgorithmSgd() {
+  /*
+   * Train cost: 0.0964943;
+   * Train accuracy: 48532/50000;
+   * Test cost: 0.14492;
+   * Test accuracy: 9580/10000;
+   *
+   * Learning rate: 0.0959074;
+   * Epochs: 100;
+   * Mini-batch size: 100;
+   * Hidden layers: 1;
+   * Neurons per hidden layer: 28
+   */
+
   auto data_supplier = std::make_unique<nn::DataSupplier>(
       kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
   auto fitness_function =
@@ -98,6 +111,19 @@ void RunGeneticAlgorithmSgd() {
 }
 
 void RunGeneticAlgorithmSgdNag() {
+  /*
+   * Train cost: 0.0957484;
+   * Train accuracy: 48562/50000;
+   * Test cost: 0.146654;
+   * Test accuracy: 9565/10000;
+   *
+   * Learning rate: 0.0100863;
+   * Epochs: 100;
+   * Mini-batch size: 100;
+   * Hidden layers: 1;
+   * Neurons per hidden layer: 28
+   */
+
   auto data_supplier = std::make_unique<nn::DataSupplier>(
       kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
   auto fitness_function =
@@ -127,6 +153,7 @@ void RunGeneticAlgorithmSgdAdagrad() {
    * Train accuracy: 47361/50000;
    * Test cost: 0.214604;
    * Test accuracy: 9395/10000;
+   *
    * Learning rate: 0.936544;
    * Epochs: 100;
    * Mini-batch size: 100;
