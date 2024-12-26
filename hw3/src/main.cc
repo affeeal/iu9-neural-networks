@@ -2,7 +2,6 @@
 
 #include <Eigen/Dense>
 #include <cmath>
-#include <eigen3/Eigen/Core>
 
 namespace {
 
@@ -44,51 +43,6 @@ class RosenbrockFunction final : public IMultivariateFunction {
     };
   }
 };
-
-class Paraboloid final : public IMultivariateFunction {
- public:
-  static constexpr std::size_t kInputSize = 2;
-
-  std::size_t Size() const override { return kInputSize; }
-
-  double Calculate(const Eigen::VectorXd& u) const override {
-    return std::pow(u.x() - 1, 2) + std::pow(u.y() - 1, 2);
-  }
-
-  Eigen::VectorXd Gradient(const Eigen::VectorXd& u) const override {
-    return Eigen::Vector<double, kInputSize>{2 * (u.x() - 1), 2 * (u.y() - 1)};
-  }
-
-  Eigen::MatrixXd Hessian(const Eigen::VectorXd& u) const override {
-    return Eigen::Matrix<double, kInputSize, kInputSize>{
-        {2, 0},
-        {0, 2},
-    };
-  }
-};
-
-double DichotomySearch(double a, double b, const double delta,
-                       const double epsilon,
-                       const std::function<double(double)>& f) {
-  while (b - a >= epsilon) {
-    const auto x1 = 0.5 * (a + b) - delta;
-    const auto x2 = 0.5 * (a + b) + delta;
-
-    const auto f1 = f(x1);
-    const auto f2 = f(x2);
-
-    if (f1 < f2) {
-      b = x1;
-    } else if (f1 > f2) {
-      a = x2;
-    } else {
-      a = x1;
-      b = x2;
-    }
-  }
-
-  return 0.5 * (a + b);
-}
 
 template <std::size_t N>
 constexpr std::array<std::size_t, N + 1> GetFibonacciNumbers() {
@@ -143,6 +97,40 @@ double FibonacciSearch(const std::function<double(double)>& f, const double a,
     return x1;
   }
   return x2;
+}
+
+Eigen::VectorXd GradientDescent(const IMultivariateFunction& f,
+                                const Eigen::VectorXd& x0,
+                                const std::size_t max_iterations,
+                                const double grad_epsilon, const double delta,
+                                const double epsilon, const double a,
+                                const double b) {
+  Eigen::VectorXd x = x0, x_next;
+  Eigen::VectorXd grad;
+  const auto phi = [&](const double alpha) {
+    return f.Calculate(x - alpha * grad);
+  };
+  for (std::size_t k = 0; k < max_iterations; ++k) {
+    spdlog::debug("Iteration {}, x = ({}, {})", k, x.x(), x.y());
+    grad = f.Gradient(x);
+    if (grad.norm() < grad_epsilon) {
+      spdlog::debug("||grad|| < epsilon");
+      return x;
+    }
+
+    const auto alpha = FibonacciSearch(phi, a, b);
+    x_next = x - alpha * grad;
+
+    if ((x_next - x).norm() < delta &&
+        std::abs(f.Calculate(x_next) - f.Calculate(x)) < epsilon) {
+      spdlog::debug("||x_next - x|| < delta && |f(x_next) - f(x)| < epsilon");
+      return x_next;
+    }
+
+    x = std::move(x_next);
+  }
+
+  return x;
 }
 
 Eigen::VectorXd FletcherReeves(const IMultivariateFunction& f,
@@ -306,10 +294,8 @@ Eigen::VectorXd LevenbergMarquardt(const IMultivariateFunction& f,
 }  // namespace
 
 int main() {
-  spdlog::set_level(spdlog::level::level_enum::debug);
-
   const auto f = RosenbrockFunction();
-  const auto x0 = Eigen::Vector<double, 2>{10, 10};
+  const auto x0 = Eigen::Vector<double, 2>{100, 100};
 
   constexpr std::size_t kMaxIterations = 100;
   constexpr auto kDelta = 1e-10;
@@ -318,7 +304,12 @@ int main() {
   constexpr auto kA = -10.0;
   constexpr auto kB = 10.0;
 
-  auto u = FletcherReeves(f, x0, kMaxIterations, kGradientEpsilon, kDelta,
+  auto u = GradientDescent(f, x0, kMaxIterations, kGradientEpsilon, kDelta,
+                          kEpsilon, kA, kB);
+  spdlog::info("Gradient descent: x=({}, {}), f(x)={}", u.x(), u.y(),
+               f.Calculate(u));
+
+  u = FletcherReeves(f, x0, kMaxIterations, kGradientEpsilon, kDelta,
                           kEpsilon, kA, kB);
   spdlog::info("Fletcher-Reeves: x=({}, {}), f(x)={}", u.x(), u.y(),
                f.Calculate(u));

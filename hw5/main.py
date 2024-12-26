@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as functional
 
-from torchvision import datasets, transforms
+from torchvision import datasets, transforms, models
 
 DATA_PATH = '../datasets/'
 BATCH_SIZE = 100
@@ -119,6 +119,11 @@ cifar10_train = datasets.CIFAR10(
 cifar10_test = datasets.CIFAR10(
     DATA_PATH, train=False, download=True, transform=transforms.ToTensor())
 
+imagenet_train = datasets.ImageNet(
+    f'{DATA_PATH}/ImageNet', split='train', transform=transforms.ToTensor())
+imagenet_test = datasets.ImageNet(
+    f'{DATA_PATH}/ImageNet', split='val', transform=transforms.ToTensor())
+
 
 # LeNet, MNIST
 model = LeNet().to(device=device)
@@ -151,8 +156,8 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
       loss_fn=loss_fn, train_loader=train_loader)
 calculate_accuracy(model, train_loader, test_loader)
-
-
+ 
+ 
 # VGG16, CIFAR10
 model = VGG16(dropout_p=0.4).to(device=device)
 train_loader = torch.utils.data.DataLoader(
@@ -173,7 +178,7 @@ train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
 calculate_accuracy(model, train_loader, test_loader)
 
 # NAG
-optimizer = optim.SGD(model.parameters(), lr=1e-1,
+optimizer = optim.SGD(model.parameters(), lr=1e-2,
                       momentum=MOMENTUM, nesterov=True)
 train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
       loss_fn=loss_fn, train_loader=train_loader)
@@ -181,6 +186,40 @@ calculate_accuracy(model, train_loader, test_loader)
 
 # Adam
 optimizer = optim.Adam(model.parameters(), lr=1e-1)
+train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+      loss_fn=loss_fn, train_loader=train_loader)
+calculate_accuracy(model, train_loader, test_loader)
+
+
+# ResNet, ImageNet
+model = models.resnet34().to(device=device)
+model.eval()
+train_loader = torch.utils.data.DataLoader(
+    imagenet_train, batch_size=BATCH_SIZE, shuffle=True)
+test_loader = torch.utils.data.DataLoader(
+    imagenet_test, batch_size=BATCH_SIZE, shuffle=True)
+
+# SGD
+optimizer = optim.SGD(model.parameters(), lr=1e-2)
+train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+      loss_fn=loss_fn, train_loader=train_loader)
+calculate_accuracy(model, train_loader, test_loader)
+
+# Adadelta
+optimizer = optim.Adadelta(model.parameters(), lr=1e-2)
+train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+      loss_fn=loss_fn, train_loader=train_loader)
+calculate_accuracy(model, train_loader, test_loader)
+
+# NAG
+optimizer = optim.SGD(model.parameters(), lr=1e-2,
+                      momentum=MOMENTUM, nesterov=True)
+train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+      loss_fn=loss_fn, train_loader=train_loader)
+calculate_accuracy(model, train_loader, test_loader)
+
+# Adam
+optimizer = optim.Adam(model.parameters(), lr=1e-2)
 train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
       loss_fn=loss_fn, train_loader=train_loader)
 calculate_accuracy(model, train_loader, test_loader)
