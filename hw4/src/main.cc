@@ -14,13 +14,8 @@
 
 namespace {
 
-// Sgd: lr=0.03, 7472-8832
-// SgdNag: lr=0.03, gamma=0.9, 8701-9353
-// SgdAdagrad: lr=5, epsilon=1e-8, 8483-9274
-// SgdAdam: lr=0.1, beta1=0.9, beta2=0.999, epsilon=1e-8, 8110-9458
-
-const std::string kDefaultTestPath = "../../mnist/mnist_test.csv";
-const std::string kDefaultTrainPath = "../../mnist/mnist_train.csv";
+const std::string kDefaultTestPath = "../../datasets/MNIST_CSV/test.csv";
+const std::string kDefaultTrainPath = "../../datasets/MNIST_CSV/train.csv";
 
 void RunLeakyReluSoftmaxCrossEntropy() {
   constexpr std::size_t kHiddenLayerSize = 40;
