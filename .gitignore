@@ -2,7 +2,7 @@
 _minted-*
 build
 venv
-hw5/data
+datasets
 *.aux
 *.csv
 *.log
