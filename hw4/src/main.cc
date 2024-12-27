@@ -180,6 +180,19 @@ void RunGeneticAlgorithmSgdAdagrad() {
 }
 
 void RunGeneticAlgorithmSgdAdam() {
+  /*
+   * Train cost: 0.0886979;
+   * Train accuracy: 48692/50000;
+   * Test cost: 0.143935;
+   * Test accuracy: 9620/10000;
+   *
+   * Learning rate: 0.0462101;
+   * Epochs: 100;
+   * Mini-batch size: 100;
+   * Hidden layers: 3;
+   * Neurons per hidden layer: 35
+   */
+
   auto data_supplier = std::make_unique<nn::DataSupplier>(
       kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
   auto fitness_function =
