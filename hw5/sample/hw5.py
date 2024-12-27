@@ -2,66 +2,43 @@ import datetime
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as functional
 
 from torchvision import datasets, transforms, models
 
-DATA_PATH = '../datasets/'
+DATA_PATH = '../../datasets/'
 BATCH_SIZE = 100
 MOMENTUM = 0.9
 EPOCHS = 20
 
 
-class LeNet(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(1, 6, kernel_size=5, padding=2)
-        self.conv2 = nn.Conv2d(6, 16, kernel_size=5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+class LeNet5(nn.Module):
+    def __init__(self, num_classes):
+        super(LeNet5, self).__init__()
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(1, 6, kernel_size=5, stride=1, padding=0),
+            nn.BatchNorm2d(6),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(6, 16, kernel_size=5, stride=1, padding=0),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2))
+        self.fc = nn.Linear(400, 120)
+        self.relu = nn.ReLU()
+        self.fc1 = nn.Linear(120, 84)
+        self.relu1 = nn.ReLU()
+        self.fc2 = nn.Linear(84, num_classes)
 
     def forward(self, x):
-        out = functional.max_pool2d(torch.relu(self.conv1(x)), 2)
-        out = functional.max_pool2d(torch.relu(self.conv2(out)), 2)
-        out = out.view(-1, 16 * 5 * 5)
-        out = torch.tanh(self.fc1(out))
-        out = torch.tanh(self.fc2(out))
-        out = self.fc3(out)
-        return out
-
-
-class VGG16(nn.Module):
-    def __init__(self, dropout_p):
-        super().__init__()
-        self.conv11 = nn.Conv2d(3, 128, kernel_size=3, padding=1)
-        self.conv12 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
-        self.conv21 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
-        self.conv22 = nn.Conv2d(256, 256, kernel_size=3, padding=1)
-        self.conv31 = nn.Conv2d(256, 512, kernel_size=3, padding=1)
-        self.conv32 = nn.Conv2d(512, 512, kernel_size=3, padding=1)
-        self.fc1 = nn.Linear(512 * 4 * 4, 1024)
-        self.fc1_dropout = nn.Dropout(p=dropout_p)
-        self.fc2 = nn.Linear(1024, 1024)
-        self.fc2_dropout = nn.Dropout(p=dropout_p)
-        self.fc3 = nn.Linear(1024, 10)
-
-    def forward(self, x):
-        out = torch.relu(self.conv11(x))     # 3 x 32 x 32   -> 128 x 32 x 32
-        out = torch.relu(self.conv12(out))   # 128 x 32 x 32 -> 128 x32 x 32
-        out = functional.max_pool2d(out, 2)  # 128 x 32 x 32 -> 128 x 16 x 16
-        out = torch.relu(self.conv21(out))   # 128 x 16 x 16 -> 256 x 16 x 16
-        out = torch.relu(self.conv22(out))   # 256 x 16 x 16 -> 256 x 16 x 16
-        out = functional.max_pool2d(out, 2)  # 256 x 16 x 16 -> 256 x 8 x 8
-        out = torch.relu(self.conv31(out))   # 256 x 8 x 8   -> 512 x 8 x 8
-        out = torch.relu(self.conv32(out))   # 512 x 8 x 8   -> 512 x 8 x 8
-        out = functional.max_pool2d(out, 2)  # 512 x 8 x 8   -> 512 x 4 x 4
-        out = out.view(-1, 512 * 4 * 4)
-        out = torch.relu(self.fc1(out))      # 512 x 4 x 4 -> 1024
-        out = self.fc1_dropout(out)
-        out = torch.relu(self.fc2(out))      # 1024 -> 1024
-        out = self.fc2_dropout(out)
-        out = self.fc3(out)                  # 1024 -> 10
+        out = self.layer1(x)
+        out = self.layer2(out)
+        out = out.reshape(out.size(0), -1)
+        out = self.fc(out)
+        out = self.relu(out)
+        out = self.fc1(out)
+        out = self.relu1(out)
+        out = self.fc2(out)
         return out
 
 
@@ -105,121 +82,125 @@ def calculate_accuracy(model, train_loader, test_loader):
     return accdict
 
 
-device = (torch.device('cuda') if torch.cuda.is_available()
-          else torch.device('cpu'))
-loss_fn = nn.CrossEntropyLoss()
+if __name__ == '__main__':
+    device = (torch.device('cuda') if torch.cuda.is_available()
+              else torch.device('cpu'))
+    print(f'Using {device}')
 
-mnist_train = datasets.MNIST(
-    DATA_PATH, train=True, download=True, transform=transforms.ToTensor())
-mnist_test = datasets.MNIST(
-    DATA_PATH, train=False, download=True, transform=transforms.ToTensor())
+    mnist_train = datasets.MNIST(
+        DATA_PATH, train=True, download=True, transform=transforms.Compose([
+            transforms.Resize((32, 32)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=(0.1307,), std=(0.3081,))]))
+    mnist_test = datasets.MNIST(
+        DATA_PATH, train=False, download=True, transform=transforms.Compose([
+            transforms.Resize((32, 32)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=(0.1325,), std=(0.3105,))]))
 
-cifar10_train = datasets.CIFAR10(
-    DATA_PATH, train=True, download=True, transform=transforms.ToTensor())
-cifar10_test = datasets.CIFAR10(
-    DATA_PATH, train=False, download=True, transform=transforms.ToTensor())
+    cifar10_train = datasets.CIFAR10(
+        DATA_PATH, train=True, download=True, transform=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4915, 0.4823, 0.4468),
+                                 (0.2470, 0.2435, 0.2616))
+        ]))
+    cifar10_test = datasets.CIFAR10(
+        DATA_PATH, train=False, download=True, transform=transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4915, 0.4823, 0.4468),
+                                 (0.2470, 0.2435, 0.2616))
+        ]))
 
-imagenet_train = datasets.ImageNet(
-    f'{DATA_PATH}/ImageNet', split='train', transform=transforms.ToTensor())
-imagenet_test = datasets.ImageNet(
-    f'{DATA_PATH}/ImageNet', split='val', transform=transforms.ToTensor())
+    loss_fn = nn.CrossEntropyLoss()
 
+    print('LeNet5, MNIST')
+    model = LeNet5(num_classes=10).to(device=device)
+    train_loader = torch.utils.data.DataLoader(
+        mnist_train, batch_size=BATCH_SIZE, shuffle=True)
+    test_loader = torch.utils.data.DataLoader(
+        mnist_test, batch_size=BATCH_SIZE, shuffle=True)
 
-# LeNet, MNIST
-model = LeNet().to(device=device)
-train_loader = torch.utils.data.DataLoader(
-    mnist_train, batch_size=BATCH_SIZE, shuffle=True)
-test_loader = torch.utils.data.DataLoader(
-    mnist_test, batch_size=BATCH_SIZE, shuffle=True)
+    print('SGD')
+    optimizer = optim.SGD(model.parameters(), lr=1e-2)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# SGD
-optimizer = optim.SGD(model.parameters(), lr=1e-2)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('Adadelta')
+    optimizer = optim.Adadelta(model.parameters(), lr=1e-2)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# Adadelta
-optimizer = optim.Adadelta(model.parameters(), lr=1e-2)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('NAG')
+    optimizer = optim.SGD(model.parameters(), lr=1e-2,
+                          momentum=MOMENTUM, nesterov=True)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# NAG
-optimizer = optim.SGD(model.parameters(), lr=1e-2,
-                      momentum=MOMENTUM, nesterov=True)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('Adam')
+    optimizer = optim.Adam(model.parameters(), lr=1e-2)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# Adam
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
- 
- 
-# VGG16, CIFAR10
-model = VGG16(dropout_p=0.4).to(device=device)
-train_loader = torch.utils.data.DataLoader(
-    cifar10_train, batch_size=BATCH_SIZE, shuffle=True)
-test_loader = torch.utils.data.DataLoader(
-    cifar10_test, batch_size=BATCH_SIZE, shuffle=True)
+    print('VGG16, CIFAR10')
+    model = models.vgg16(num_classes=10, dropout=0.5).to(device=device)
+    train_loader = torch.utils.data.DataLoader(
+        cifar10_train, batch_size=BATCH_SIZE, shuffle=True)
+    test_loader = torch.utils.data.DataLoader(
+        cifar10_test, batch_size=BATCH_SIZE, shuffle=True)
 
-# SGD
-optimizer = optim.SGD(model.parameters(), lr=1e-1)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('SGD')
+    optimizer = optim.SGD(model.parameters(), lr=1e-2)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# Adadelta
-optimizer = optim.Adadelta(model.parameters(), lr=1e-1)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('Adadelta')
+    optimizer = optim.Adadelta(model.parameters(), lr=1e-2)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# NAG
-optimizer = optim.SGD(model.parameters(), lr=1e-2,
-                      momentum=MOMENTUM, nesterov=True)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('NAG')
+    optimizer = optim.SGD(model.parameters(), lr=1e-2,
+                          momentum=MOMENTUM, nesterov=True)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# Adam
-optimizer = optim.Adam(model.parameters(), lr=1e-1)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('Adam')
+    optimizer = optim.Adam(model.parameters(), lr=1e-2)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
+    print('ResNet34, CIFAR10')
+    model = models.resnet34(num_classes=10).to(device)
 
-# ResNet, ImageNet
-model = models.resnet34().to(device=device)
-model.eval()
-train_loader = torch.utils.data.DataLoader(
-    imagenet_train, batch_size=BATCH_SIZE, shuffle=True)
-test_loader = torch.utils.data.DataLoader(
-    imagenet_test, batch_size=BATCH_SIZE, shuffle=True)
+    print('SGD')
+    optimizer = optim.SGD(model.parameters(), lr=1e-2)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# SGD
-optimizer = optim.SGD(model.parameters(), lr=1e-2)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('Adadelta')
+    optimizer = optim.Adadelta(model.parameters(), lr=1e-2)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# Adadelta
-optimizer = optim.Adadelta(model.parameters(), lr=1e-2)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('NAG')
+    optimizer = optim.SGD(model.parameters(), lr=1e-2,
+                          momentum=MOMENTUM, nesterov=True)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
 
-# NAG
-optimizer = optim.SGD(model.parameters(), lr=1e-2,
-                      momentum=MOMENTUM, nesterov=True)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
-
-# Adam
-optimizer = optim.Adam(model.parameters(), lr=1e-2)
-train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-      loss_fn=loss_fn, train_loader=train_loader)
-calculate_accuracy(model, train_loader, test_loader)
+    print('Adam')
+    optimizer = optim.Adam(model.parameters(), lr=1e-2)
+    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
+          loss_fn=loss_fn, train_loader=train_loader)
+    calculate_accuracy(model, train_loader, test_loader)
