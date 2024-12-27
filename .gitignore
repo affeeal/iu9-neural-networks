@@ -1,5 +1,8 @@
+.ipynb_checkpoints
 _minted-*
 build
+venv
+datasets
 *.aux
 *.csv
 *.log
