@@ -152,18 +152,16 @@
 \vspace{11em}
 
 \begin{center}
-\Large {\bf Домашняя работа № 2} \\ 
+\Large {\bf Домашняя работа №~4} \\ 
 \large {\bf по курсу <<Теория искусственных нейронных сетей>>} \\
-\large <<Разработка многослойного персептрона на основе обратного распространения ошибки FFNN>> 
 \end{center}\normalsize
 
 \vspace{8em}
 
-
 \begin{flushright}
   {Студент группы ИУ9-71Б Афанасьев И. \hspace*{15pt}\\ 
   \vspace{2ex}
-  Преподаватель Каганов Ю. Т.\hspace*{15pt}}
+  Преподаватель Каганов Ю.Т.\hspace*{15pt}}
 \end{flushright}
 
 \bigskip
@@ -188,37 +186,28 @@
 \section{Цель работы}
 
 \begin{enumerate}
-  \item Изучение многослойного персептрона, исследование его работы на основе использования градиентного метода оптимизации и различных целевых функций.
-\end{enumerate}
-
-\section{Постановка задачи}
-
-\begin{enumerate}
-  \item Реализовать на языке высокого уровня многослойный персептрон и проверить его работоспособность на примере данных, выбранных из MNIST dataset. 
-  \item Исследовать работу персептрона на основе использования различных целевых функций (среднеквадратичная ошибка, перекрестная энтропия, дивергенция
-    Кульбака-Лейблера).
-  \item Провести исследование эффективности работы многослойного персептрона при изменении гиперпараметров (количества нейронов и количества слоев).
-  \item Подготовить отчет с распечаткой текста программы, графиками результатов исследования и анализом результатов.
+  \item Сравнительный анализ современных методов оптимизации (SGD, NAG, Adagrad, ADAM) на примере многослойного персептрона.
+  \item Использование генетического алгоритма для оптимизации гиперпараметров многослойного персептрона.
 \end{enumerate}
 
 \section{Реализация}
 
-Каркас для обучения многослойного персептрона на основе стохастического градиентного спуска и обратного распространения ошибки был разработан в
-домашнем задании №1. Программа написана на языке C++; для выполнения матричных операций используется библиотека
-\href{https://eigen.tuxfamily.org/index.php?title=Main_Page}{Eigen}.
+В реализации используется каркас многослойного персептрона, разработанный в домашнем задании №2. Программа написана на языке C++.
 
-В листинге \ref{lst:activation_function.h} приводится реализация функций активации: линейной, ReLU, Leaky ReLU, сигмоиды, гиперболического
-тангенса и Softmax.
+В листингах \ref{lst:activation_function.h}, \ref{lst:cost_function.h} приводится исходный код функций активации и стоимости.
+В листингах \ref{lst:data_supplier.h}, \ref{lst:data_supplier.cc} приводится исходный код загрузки датасета MNIST.
+В листингах \ref{lst:perceptron.h} и \ref{lst:perceptron.cc} приводится исходный код каркаса многослойного персептрона и 
+методов оптимизации: SGD, NAG, Adagrad, Adam.
 
-В листинге \ref{lst:cost_function.h} приводится реализация функций ошибки: MSE, кросс-энтропии и дивергенции Кульбака-Лейблера.
+В листингах \ref{lst:chromosome.h} и \ref{lst:chromosome.cc} приводятся классы хромосомы, используемые генетическим алгоритмом.
+В листингах \ref{lst:fitness_function.h} и \ref{lst:fitness_function.cc} приводятся классы функции приспособленности. В качестве
+значения приспособленности используются обратные значения функций стоимости на тестовых данных.
+В листингах \ref{lst:genetic_algorithm.h} и \ref{lst:genetic_algorithm.cc} приводится реализация генетического алгоритма. Отбор производится
+по методу рулетки. При скрещивании потомки в разных пропорциях получают родительские характеристики, а при мутации случайным
+образом изменяется некоторый ген хромосомы (в частности, алгоритм параметризуется долями хромосом, подвергающихся скрещиванию и мутации).
 
-В листингах \ref{lst:perceptron.h} и \ref{lst:perceptron.cc} приводится реализация многослойного персептрона и его обучения.
+В листинге \ref{lst:main.cc} приводится исходный код \texttt{main}-файла программы.
 
-В листингах \ref{lst:data_supplier.h} и \ref{lst:data_supplier.cc} приводится программный код формирования данных для обучения, валидации и
-тестирования на основе исходных файлов датасета MNIST в формате CSV.
-
-В листинге \ref{lst:main.cc} приводится \texttt{main}-файл с различными конфигурациями персептрона.
- 
 \begin{longlisting}
   \caption{Файл \texttt{activation\_function.h}}
   \inputminted{cpp}{../src/activation_function.h}
@@ -229,18 +218,6 @@
   \caption{Файл \texttt{cost\_function.h}}
   \inputminted{cpp}{../src/cost_function.h}
   \label{lst:cost_function.h}
-\end{longlisting}
-
-\begin{longlisting}
-  \caption{Файл \texttt{perceptron.h}}
-  \inputminted{cpp}{../src/perceptron.h}
-  \label{lst:perceptron.h}
-\end{longlisting}
-
-\begin{longlisting}
-  \caption{Файл \texttt{perceptron.cc}}
-  \inputminted{cpp}{../src/perceptron.cc}
-  \label{lst:perceptron.cc}
 \end{longlisting}
 
 \begin{longlisting}
@@ -256,328 +233,117 @@
 \end{longlisting}
 
 \begin{longlisting}
+  \caption{Файл \texttt{perceptron.h}}
+  \inputminted{cpp}{../src/perceptron.h}
+  \label{lst:perceptron.h}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{perceptron.cc}}
+  \inputminted{cpp}{../src/perceptron.cc}
+  \label{lst:perceptron.cc}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{chromosome.h}}
+  \inputminted{cpp}{../src/chromosome.h}
+  \label{lst:chromosome.h}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{chromosome.cc}}
+  \inputminted{cpp}{../src/chromosome.cc}
+  \label{lst:chromosome.cc}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{fitness\_function.h}}
+  \inputminted{cpp}{../src/fitness_function.h}
+  \label{lst:fitness_function.h}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{fitness\_function.cc}}
+  \inputminted{cpp}{../src/fitness_function.cc}
+  \label{lst:fitness_function.cc}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{genetic\_algorithm.h}}
+  \inputminted{cpp}{../src/genetic_algorithm.h}
+  \label{lst:genetic_algorithm.h}
+\end{longlisting}
+
+\begin{longlisting}
+  \caption{Файл \texttt{genetic\_algorithm.cc}}
+  \inputminted{cpp}{../src/genetic_algorithm.cc}
+  \label{lst:genetic_algorithm.cc}
+\end{longlisting}
+ 
+\begin{longlisting}
   \caption{Файл \texttt{main.cc}}
   \inputminted{cpp}{../src/main.cc}
   \label{lst:main.cc}
 \end{longlisting}
 
-\section{Результаты экспериментов}
+\section{Результаты сравнения}
 
-На протяжении всех экспериментов значения некоторых гиперпараметров были фиксированными:
+Оптимальные гиперпараметры для обучения многослойного персептрона с различными оптимизаторами определялись с помощью генетического алгоритма.
+Фиксированными были количество эпох обучения (100) и размер пакета данных (100). Коэффициент обучения определялся в промежутке $[0.001, 1]$,
+количество скрытых слоёв --- от 0 до 4, количество нейронов в скрытых слоях --- от 10 до 40. Параметры генетического алгоритма:
 \begin{itemize}
-  \item количество эпох: $200$;
-  \item размер пакета данных (mini-batch) для стохастического градиентного спуска: $100$;
-  \item коэффициент обучения (learning rate): $0.025$.
+  \item количество популяций: 10;
+  \item размер популяции: 60;
+  \item доля особей, подвергающихся скрещиванию: 40\%;
+  \item доля особей, подвергающихся мутации: 15\%.
 \end{itemize}
-Изменялись значения следующих гиперпараметров:
+
+Функции активации скрытых слоёв персептрона --- Leaky ReLU, выходного слоя --- Softmax. Функция стоимости --- перекрёстная энтропия.
+
+\subsection{SGD}
+
+Для SGD-оптимизатора определены следующие оптимальные гиперпараметры:
 \begin{itemize}
-  \item количество скрытых слоёв: $1$ или $3$;
-  \item количество нейронов в скрытых слоях: $20$ или $40$.
+  \item коэффициент обучения: 0.0959074;
+  \item количество скрытых слоёв: 1;
+  \item количество нейронов в скрытых слоях: 28.
 \end{itemize}
-Таким образом, для каждой функции ошибки --- среднеквадратичной, перекрёстной энтропии и дивергенции Кульбака-Лейблера --- рассматривались четыре
-конфигурации с разным числом скрытых слоёв и нейронов в них. В скрытых слоях всегда используется функция активации Leaky ReLU, на выходном слое ---
-Softmax.
-
-\subsection{Среднеквадратичная ошибка (MSE)}
-
-\subsubsection{1 скрытый слой, 20 нейронов}
-
-%  Epoch 199; training cost: 0.166286; training accuracy: 47518/50000; testing cost: 0.193274; testing accuracy: 9421/10000;
-
-На рисунке\footnote{На некоторых рисунках шкала оси $Oy$ начинается с $0.2$, а не $0.0$.} \ref{fig:1_20_leaky_relu_softmax_mse_cost} изображено
-изменение функции ошибки за период обучения персептрона. Здесь и далее график синей функции соответствует данным для обучения, график оранжевой
-функции --- тестовым данным. В результате, ошибка на данных для обучения составляет $0.166286$, ошибка на тестовых данных --- $0.193274$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_20_leaky_relu_softmax_mse_cost.png}
-  \caption{}
-  \label{fig:1_20_leaky_relu_softmax_mse_cost}
-\end{figure}
-
-На рисунке \ref{fig:1_20_leaky_relu_softmax_mse_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{47518}{50000} \approx 95,04\%$, на тестовых данных --- $\frac{9421}{10000} = 94,21\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_20_leaky_relu_softmax_mse_accuracy.png}
-  \caption{}
-  \label{fig:1_20_leaky_relu_softmax_mse_accuracy}
-\end{figure}
-
-\subsubsection{1 скрытый слой, 40 нейронов}
-
-%  Epoch 199; training cost: 0.123245; training accuracy: 48121/50000; testing cost: 0.161724; testing accuracy: 9527/10000;
-
-На рисунке \ref{fig:1_40_leaky_relu_softmax_mse_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.123245$, ошибка на тестовых данных --- $0.161724$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_40_leaky_relu_softmax_mse_cost.png}
-  \caption{}
-  \label{fig:1_40_leaky_relu_softmax_mse_cost}
-\end{figure}
-
-На рисунке \ref{fig:1_40_leaky_relu_softmax_mse_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{48121}{50000} \approx 96,24\%$, на тестовых данных --- $\frac{9527}{10000} = 95,27\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_40_leaky_relu_softmax_mse_accuracy.png}
-  \caption{}
-  \label{fig:1_40_leaky_relu_softmax_mse_accuracy}
-\end{figure}
-
-\subsubsection{3 скрытых слоя, 20 нейронов}
-
-%  Epoch 199; training cost: 0.163502; training accuracy: 47504/50000; testing cost: 0.206251; testing accuracy: 9416/10000;
-
-На рисунке \ref{fig:3_20_leaky_relu_softmax_mse_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.163502$, ошибка на тестовых данных --- $0.206251$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_20_leaky_relu_softmax_mse_cost.png}
-  \caption{}
-  \label{fig:3_20_leaky_relu_softmax_mse_cost}
-\end{figure}
-
-На рисунке \ref{fig:3_20_leaky_relu_softmax_mse_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{47504}{50000} \approx 95,01\%$, на тестовых данных --- $\frac{9416}{10000} = 94,16\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_20_leaky_relu_softmax_mse_accuracy.png}
-  \caption{}
-  \label{fig:3_20_leaky_relu_softmax_mse_accuracy}
-\end{figure}
-
-\subsubsection{3 скрытых слоя, 40 нейронов}
-
-%  Epoch 199; training cost: 0.105351; training accuracy: 48422/50000; testing cost: 0.190718; testing accuracy: 9481/10000;
-
-На рисунке \ref{fig:3_40_leaky_relu_softmax_mse_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.105351$, ошибка на тестовых данных --- $0.190718$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_40_leaky_relu_softmax_mse_cost.png}
-  \caption{}
-  \label{fig:3_40_leaky_relu_softmax_mse_cost}
-\end{figure}
-
-На рисунке \ref{fig:3_40_leaky_relu_softmax_mse_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{48422}{50000} \approx 96,84\%$, на тестовых данных --- $\frac{9481}{10000} = 94,81\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_40_leaky_relu_softmax_mse_accuracy.png}
-  \caption{}
-  \label{fig:3_40_leaky_relu_softmax_mse_accuracy}
-\end{figure}
-
-\subsection{Перекрёстная энтропия}
-
-\subsubsection{1 скрытый слой, 20 нейронов}
-
-%  Epoch 199; training cost: 0.192402; training accuracy: 47194/50000; testing cost: 0.217352; testing accuracy: 9345/10000;
-
-На рисунке \ref{fig:1_20_leaky_relu_softmax_cross_entropy_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.192402$, ошибка на тестовых данных --- $0.217352$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_20_leaky_relu_softmax_cross_entropy_cost.png}
-  \caption{}
-  \label{fig:1_20_leaky_relu_softmax_cross_entropy_cost}
-\end{figure}
-
-На рисунке \ref{fig:1_20_leaky_relu_softmax_cross_entropy_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{47194}{50000} \approx 94,34\%$, на тестовых данных --- $\frac{9345}{10000} = 93,45\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_20_leaky_relu_softmax_cross_entropy_accuracy.png}
-  \caption{}
-  \label{fig:1_20_leaky_relu_softmax_cross_entropy_accuracy}
-\end{figure}
-
-\subsubsection{1 скрытый слой, 40 нейронов}
-
-%  Epoch 199; training cost: 0.131022; training accuracy: 48097/50000; testing cost: 0.173189; testing accuracy: 9483/10000;
-
-На рисунке \ref{fig:1_40_leaky_relu_softmax_cross_entropy_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.131022$, ошибка на тестовых данных --- $0.173189$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_40_leaky_relu_softmax_cross_entropy_cost.png}
-  \caption{}
-  \label{fig:1_40_leaky_relu_softmax_cross_entropy_cost}
-\end{figure}
-
-На рисунке \ref{fig:1_40_leaky_relu_softmax_cross_entropy_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{48097}{50000} \approx 96,19\%$, на тестовых данных --- $\frac{9483}{10000} = 94,83\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_40_leaky_relu_softmax_cross_entropy_accuracy.png}
-  \caption{}
-  \label{fig:1_40_leaky_relu_softmax_cross_entropy_accuracy}
-\end{figure}
-
-\subsubsection{3 скрытых слоя, 20 нейронов}
-
-%  Epoch 199; training cost: 0.157613; training accuracy: 47681/50000; testing cost: 0.216353; testing accuracy: 9386/10000;
-
-На рисунке \ref{fig:3_20_leaky_relu_softmax_cross_entropy_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.157613$, ошибка на тестовых данных --- $0.216353$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_20_leaky_relu_softmax_cross_entropy_cost.png}
-  \caption{}
-  \label{fig:3_20_leaky_relu_softmax_cross_entropy_cost}
-\end{figure}
-
-На рисунке \ref{fig:3_20_leaky_relu_softmax_cross_entropy_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{47681}{50000} \approx 95,36\%$, на тестовых данных --- $\frac{9386}{10000} = 93,86\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_20_leaky_relu_softmax_cross_entropy_accuracy.png}
-  \caption{}
-  \label{fig:3_20_leaky_relu_softmax_cross_entropy_accuracy}
-\end{figure}
-
-\subsubsection{3 скрытых слоя, 40 нейронов}
-
-%  Epoch 199; training cost: 0.118457; training accuracy: 48232/50000; testing cost: 0.17582; testing accuracy: 9502/10000;
-
-На рисунке \ref{fig:3_40_leaky_relu_softmax_cross_entropy_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.118457$, ошибка на тестовых данных --- $0.17582$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_40_leaky_relu_softmax_cross_entropy_cost.png}
-  \caption{}
-  \label{fig:3_40_leaky_relu_softmax_cross_entropy_cost}
-\end{figure}
-
-На рисунке \ref{fig:3_40_leaky_relu_softmax_cross_entropy_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{48232}{50000} \approx 96,46\%$, на тестовых данных --- $\frac{9502}{10000} = 95,02\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_40_leaky_relu_softmax_cross_entropy_accuracy.png}
-  \caption{}
-  \label{fig:3_40_leaky_relu_softmax_cross_entropy_accuracy}
-\end{figure}
-
-\subsection{Дивергенция Кульбака-Лейблера}
-
-\subsubsection{1 скрытый слой, 20 нейронов}
-
-%  Epoch 199; training cost: 0.17601; training accuracy: 47346/50000; testing cost: 0.201559; testing accuracy: 9415/10000;
-
-На рисунке \ref{fig:1_20_leaky_relu_softmax_kl_divergence_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.17601$, ошибка на тестовых данных --- $0.201559$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_20_leaky_relu_softmax_kl_divergence_cost.png}
-  \caption{}
-  \label{fig:1_20_leaky_relu_softmax_kl_divergence_cost}
-\end{figure}
-
-На рисунке \ref{fig:1_20_leaky_relu_softmax_kl_divergence_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{47346}{50000} \approx 94,69\%$, на тестовых данных --- $\frac{9415}{10000} = 94,15\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_20_leaky_relu_softmax_kl_divergence_accuracy.png}
-  \caption{}
-  \label{fig:1_20_leaky_relu_softmax_kl_divergence_accuracy}
-\end{figure}
-
-\subsubsection{1 скрытый слой, 40 нейронов}
-
-%  Epoch 199; training cost: 0.118821; training accuracy: 48233/50000; testing cost: 0.168346; testing accuracy: 9506/10000;
-
-На рисунке \ref{fig:1_40_leaky_relu_softmax_kl_divergence_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.118821$, ошибка на тестовых данных --- $0.168346$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_40_leaky_relu_softmax_kl_divergence_cost.png}
-  \caption{}
-  \label{fig:1_40_leaky_relu_softmax_kl_divergence_cost}
-\end{figure}
-
-На рисунке \ref{fig:1_40_leaky_relu_softmax_kl_divergence_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{48233}{50000} \approx 96,47\%$, на тестовых данных --- $\frac{9506}{10000} = 95,06\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/1_40_leaky_relu_softmax_kl_divergence_accuracy.png}
-  \caption{}
-  \label{fig:1_40_leaky_relu_softmax_kl_divergence_accuracy}
-\end{figure}
-
-\subsubsection{3 скрытых слоя, 20 нейронов}
-
-%  Epoch 199; training cost: 0.163792; training accuracy: 47487/50000; testing cost: 0.213412; testing accuracy: 9369/10000;
-
-На рисунке \ref{fig:3_20_leaky_relu_softmax_kl_divergence_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.163792$, ошибка на тестовых данных --- $0.213412$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_20_leaky_relu_softmax_kl_divergence_cost.png}
-  \caption{}
-  \label{fig:3_20_leaky_relu_softmax_kl_divergence_cost}
-\end{figure}
-
-На рисунке \ref{fig:3_20_leaky_relu_softmax_kl_divergence_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{47487}{50000} \approx 94,97\%$, на тестовых данных --- $\frac{9369}{10000} = 93,69\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_20_leaky_relu_softmax_kl_divergence_accuracy.png}
-  \caption{}
-  \label{fig:3_20_leaky_relu_softmax_kl_divergence_accuracy}
-\end{figure}
-
-\subsubsection{3 скрытых слоя, 40 нейронов}
-
-%  Epoch 199; training cost: 0.111865; training accuracy: 48315/50000; testing cost: 0.197848; testing accuracy: 9457/10000;
-
-На рисунке \ref{fig:3_40_leaky_relu_softmax_kl_divergence_cost} изображено изменение функции ошибки за период обучения персептрона.
-В результате, ошибка на данных для обучения составляет $0.111865$, ошибка на тестовых данных --- $0.197848$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_40_leaky_relu_softmax_kl_divergence_cost.png}
-  \caption{}
-  \label{fig:3_40_leaky_relu_softmax_kl_divergence_cost}
-\end{figure}
-
-На рисунке \ref{fig:3_40_leaky_relu_softmax_kl_divergence_accuracy} изображено изменение точности за период обучения персептрона.
-В результате, точность на данных для обучения составляет $\frac{48315}{50000} \approx 96,63\%$, на тестовых данных --- $\frac{9457}{10000} = 94,57\%$.
-
-\begin{figure}[!htb]
-  \centering\includegraphics[width=\textwidth]{images/3_40_leaky_relu_softmax_kl_divergence_accuracy.png}
-  \caption{}
-  \label{fig:3_40_leaky_relu_softmax_kl_divergence_accuracy}
-\end{figure}
+Точность работы пересептрона с указанными гиперпараметрами на тренировочных данных составляет $97.06\%$, на тестовых данных --- $95.80\%$.
+
+\subsection{NAG}
+
+Для NAG-оптимизатора с коэффициентом $\gamma = 0.9$ определены следующие оптимальные гиперпараметры:
+\begin{itemize}
+  \item коэффициент обучения: 0.0100863;
+  \item количество скрытых слоёв: 1;
+  \item количество нейронов в скрытых слоях: 28.
+\end{itemize}
+Точность работы пересептрона с указанными гиперпараметрами на тренировочных данных составляет $97.12\%$, на тестовых данных --- $95.65\%$.
+
+\subsection{Adagrad}
+
+Для Adagrad-оптимизатора с $\varepsilon = 10^{-8}$ определены следующие оптимальные гиперпараметры:
+\begin{itemize}
+  \item коэффициент обучения: 0.936544;
+  \item количество скрытых слоёв: 1;
+  \item количество нейронов в скрытых слоях: 36.
+\end{itemize}
+Точность работы пересептрона с указанными гиперпараметрами на тренировочных данных составляет $94.72\%$, на тестовых данных --- $93.95\%$.
+
+\subsection{Adam}
+
+Для Adam-оптимизатора с $\varepsilon = 10^{-8}, \beta_1 = 0.9, \beta_2 = 0.999$ определены следующие оптимальные гиперпараметры:
+\begin{itemize}
+  \item коэффициент обучения: 0.0462101;
+  \item количество скрытых слоёв: 3;
+  \item количество нейронов в скрытых слоях: 35.
+\end{itemize}
+Точность работы пересептрона с указанными гиперпараметрами на тренировочных данных составляет $97.38\%$, на тестовых данных --- $96.20\%$.
 
 \section{Вывод}
 
-% 1x20
-% Epoch 199; training cost: 0.166286; training accuracy: 47518/50000; testing cost: 0.193274; testing accuracy: 9421/10000;
-% Epoch 199; training cost: 0.192402; training accuracy: 47194/50000; testing cost: 0.217352; testing accuracy: 9345/10000;
-% Epoch 199; training cost: 0.17601; training accuracy: 47346/50000; testing cost: 0.201559; testing accuracy: 9415/10000;
-%
-% 1x40
-% Epoch 199; training cost: 0.123245; training accuracy: 48121/50000; testing cost: 0.161724; testing accuracy: 9527/10000;
-% Epoch 199; training cost: 0.131022; training accuracy: 48097/50000; testing cost: 0.173189; testing accuracy: 9483/10000;
-% Epoch 199; training cost: 0.118821; training accuracy: 48233/50000; testing cost: 0.168346; testing accuracy: 9506/10000;
-%
-% 3x20
-% Epoch 199; training cost: 0.163502; training accuracy: 47504/50000; testing cost: 0.206251; testing accuracy: 9416/10000;
-% Epoch 199; training cost: 0.157613; training accuracy: 47681/50000; testing cost: 0.216353; testing accuracy: 9386/10000;
-% Epoch 199; training cost: 0.163792; training accuracy: 47487/50000; testing cost: 0.213412; testing accuracy: 9369/10000;
-%
-% 3x40
-% Epoch 199; training cost: 0.105351; training accuracy: 48422/50000; testing cost: 0.190718; testing accuracy: 9481/10000;
-% Epoch 199; training cost: 0.118457; training accuracy: 48232/50000; testing cost: 0.17582; testing accuracy: 9502/10000;
-% Epoch 199; training cost: 0.111865; training accuracy: 48315/50000; testing cost: 0.197848; testing accuracy: 9457/10000;
-
-Исходя из полученных результатов видно, что наименьшая ошибка на тестовых данных достигается при наличии 1-го скрытого слоя с 40 нейронами: для
-среднеквадратичной функции, перекрёстной энтропии, дивергенции Кульбака-Лейблера точность на тестовых данных составляет $95,27\%$, $94,83\%$ и $95,06\%$
-соответственно. Увеличение числа нейронов в скрытых слоях может способствовать уменьшению ошибки и повышению точности персептрона.
-
-При 3-х скрытых слоях с 40 нейронами ошибка на данных для обучения меньше, чем в предыдущем случае, однако ошибка на тестовых данных выше --- это может
-свидетельствовать о переобучении персептрона; более простая архитектура сети (с 1-м скрытым слоем, а не 3-мя) показывает лучший результат.
-
-Между конфигурациями, где скрытые слои содержат по 20 нейронов, особенных различий нет; здесь ошибка в целом выше, чем в предыдущих двух случаях.
+Наилучший результат в $96.20\%$ точности на тестовых данных был достигнут с оптимизатором Adam, который сочетает в себе идеи оптимизаторов
+NAG и Adagrad. Благодаря использованию генетического алгоритма удалось автоматически определить оптимальные гиперпараметры для обучения
+персептрона с различными оптимизаторами.
 
 \end{document}
