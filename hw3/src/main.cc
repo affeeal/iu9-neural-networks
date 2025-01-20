@@ -12,7 +12,7 @@ class IMultivariateFunction {
  public:
   virtual std::size_t Size() const = 0;
 
-  virtual double Calculate(const Eigen::VectorXd& u) const = 0;
+  virtual double At(const Eigen::VectorXd& u) const = 0;
 
   virtual Eigen::VectorXd Gradient(const Eigen::VectorXd& u) const = 0;
 
@@ -25,7 +25,7 @@ class RosenbrockFunction final : public IMultivariateFunction {
 
   std::size_t Size() const override { return kInputSize; }
 
-  double Calculate(const Eigen::VectorXd& u) const override {
+  double At(const Eigen::VectorXd& u) const override {
     return 250 * std::pow(std::pow(u.x(), 2) - u.y(), 2) +
            2 * std::pow(u.x() - 1, 2) + 50;
   }
@@ -108,10 +108,10 @@ Eigen::VectorXd GradientDescent(const IMultivariateFunction& f,
   Eigen::VectorXd x = x0, x_next;
   Eigen::VectorXd grad;
   const auto phi = [&](const double alpha) {
-    return f.Calculate(x - alpha * grad);
+    return f.At(x - alpha * grad);
   };
   for (std::size_t k = 0; k < max_iterations; ++k) {
-    spdlog::debug("Iteration {}, x = ({}, {})", k, x.x(), x.y());
+    spdlog::debug("Iteration {}, x = ({}, {}), f(x)={}", k, x.x(), x.y(), f.At(x));
     grad = f.Gradient(x);
     if (grad.norm() < grad_epsilon) {
       spdlog::debug("||grad|| < epsilon");
@@ -122,7 +122,7 @@ Eigen::VectorXd GradientDescent(const IMultivariateFunction& f,
     x_next = x - alpha * grad;
 
     if ((x_next - x).norm() < delta &&
-        std::abs(f.Calculate(x_next) - f.Calculate(x)) < epsilon) {
+        std::abs(f.At(x_next) - f.At(x)) < epsilon) {
       spdlog::debug("||x_next - x|| < delta && |f(x_next) - f(x)| < epsilon");
       return x_next;
     }
@@ -143,11 +143,13 @@ Eigen::VectorXd FletcherReeves(const IMultivariateFunction& f,
   Eigen::VectorXd prev_grad, grad;
   Eigen::VectorXd prev_d, d;
   const auto phi = [&](const double alpha) {
-    return f.Calculate(x + alpha * d);
+    return f.At(x + alpha * d);
   };
   for (std::size_t k = 0; k < max_iterations; ++k) {
+    spdlog::debug("Iteration {}, x = ({}, {}), f(x)={}", k, x.x(), x.y(), f.At(x));
     grad = f.Gradient(x);
     if (grad.norm() < grad_epsilon) {
+      spdlog::debug("||grad|| < epsilon");
       return x;
     }
 
@@ -161,7 +163,8 @@ Eigen::VectorXd FletcherReeves(const IMultivariateFunction& f,
     x_next = x + alpha * d;
 
     if ((x_next - x).norm() < delta &&
-        std::abs(f.Calculate(x_next) - f.Calculate(x)) < epsilon) {
+        std::abs(f.At(x_next) - f.At(x)) < epsilon) {
+      spdlog::debug("||x_next - x|| < delta && |f(x_next) - f(x)| < epsilon");
       return x_next;
     }
 
@@ -184,12 +187,14 @@ Eigen::VectorXd PolakRibier(const IMultivariateFunction& f,
   Eigen::VectorXd prev_d, d;
   double alpha;
   const auto phi = [&](const double alpha) {
-    return f.Calculate(x + alpha * d);
+    return f.At(x + alpha * d);
   };
   const auto n = f.Size();
   for (std::size_t k = 0; k < max_iterations; ++k) {
+    spdlog::debug("Iteration {}, x = ({}, {}), f(x)={}", k, x.x(), x.y(), f.At(x));
     grad = f.Gradient(x);
     if (grad.norm() < grad_epsilon) {
+      spdlog::debug("||grad|| < epsilon");
       return x;
     }
 
@@ -205,7 +210,8 @@ Eigen::VectorXd PolakRibier(const IMultivariateFunction& f,
     x_next = x + alpha * d;
 
     if ((x_next - x).norm() < delta &&
-        std::abs(f.Calculate(x_next) - f.Calculate(x)) < epsilon) {
+        std::abs(f.At(x_next) - f.At(x)) < epsilon) {
+      spdlog::debug("||x_next - x|| < delta && |f(x_next) - f(x)| < epsilon");
       return x_next;
     }
 
@@ -228,7 +234,7 @@ Eigen::VectorXd DavidonFletcherPowell(const IMultivariateFunction& f,
   Eigen::VectorXd d;
 
   const auto phi = [&](const double alpha) {
-    return f.Calculate(x + alpha * d);
+    return f.At(x + alpha * d);
   };
 
   const auto n = f.Size();
@@ -236,7 +242,9 @@ Eigen::VectorXd DavidonFletcherPowell(const IMultivariateFunction& f,
   g.setIdentity();
 
   for (std::size_t k = 0; k < max_iterations; ++k) {
+    spdlog::debug("Iteration {}, x = ({}, {}), f(x)={}", k, x.x(), x.y(), f.At(x));
     if (grad.norm() < grad_epsilon) {
+      spdlog::debug("||grad|| < epsilon");
       return x;
     }
 
@@ -245,7 +253,8 @@ Eigen::VectorXd DavidonFletcherPowell(const IMultivariateFunction& f,
     x_next = x + alpha * d;
 
     if ((x_next - x).norm() < delta &&
-        std::abs(f.Calculate(x_next) - f.Calculate(x)) < epsilon) {
+        std::abs(f.At(x_next) - f.At(x)) < epsilon) {
+      spdlog::debug("||x_next - x|| < delta && |f(x_next) - f(x)| < epsilon");
       return x_next;
     }
 
@@ -274,14 +283,16 @@ Eigen::VectorXd LevenbergMarquardt(const IMultivariateFunction& f,
   const auto n = f.Size();
 
   for (std::size_t k = 0; k < max_iterations; ++k) {
+    spdlog::debug("Iteration {}, x = ({}, {}), f(x)={}", k, x.x(), x.y(), f.At(x));
     const auto grad = f.Gradient(x);
     if (grad.norm() < epsilon) {
+      spdlog::debug("||grad|| < epsilon");
       return x;
     }
 
-    const auto f_x = f.Calculate(x);
+    const auto f_x = f.At(x);
     x -= (f.Hessian(x) + mu * Eigen::MatrixXd::Identity(n, n)).inverse() * grad;
-    if (f.Calculate(x) < f_x) {
+    if (f.At(x) < f_x) {
       mu /= 2;
     } else {
       mu *= 2;
@@ -294,6 +305,8 @@ Eigen::VectorXd LevenbergMarquardt(const IMultivariateFunction& f,
 }  // namespace
 
 int main() {
+  spdlog::set_level(spdlog::level::level_enum::debug);
+
   const auto f = RosenbrockFunction();
   const auto x0 = Eigen::Vector<double, 2>{100, 100};
 
@@ -305,26 +318,26 @@ int main() {
   constexpr auto kB = 10.0;
 
   auto u = GradientDescent(f, x0, kMaxIterations, kGradientEpsilon, kDelta,
-                          kEpsilon, kA, kB);
+                           kEpsilon, kA, kB);
   spdlog::info("Gradient descent: x=({}, {}), f(x)={}", u.x(), u.y(),
-               f.Calculate(u));
+               f.At(u));
 
-  u = FletcherReeves(f, x0, kMaxIterations, kGradientEpsilon, kDelta,
-                          kEpsilon, kA, kB);
+  u = FletcherReeves(f, x0, kMaxIterations, kGradientEpsilon, kDelta, kEpsilon,
+                     kA, kB);
   spdlog::info("Fletcher-Reeves: x=({}, {}), f(x)={}", u.x(), u.y(),
-               f.Calculate(u));
+               f.At(u));
 
   u = PolakRibier(f, x0, kMaxIterations, kGradientEpsilon, kDelta, kEpsilon, kA,
                   kB);
   spdlog::info("Polak-Ribier: x=({}, {}), f(x)={}", u.x(), u.y(),
-               f.Calculate(u));
+               f.At(u));
 
   u = DavidonFletcherPowell(f, x0, kMaxIterations, kGradientEpsilon, kDelta,
                             kEpsilon, kA, kB);
   spdlog::info("Davidon-Fletcher-Powell: x=({}, {}), f(x)={}", u.x(), u.y(),
-               f.Calculate(u));
+               f.At(u));
 
   u = LevenbergMarquardt(f, x0, kMaxIterations, kGradientEpsilon);
   spdlog::info("Levenberg-Marquardt: x=({}, {}), f(x)={}", u.x(), u.y(),
-               f.Calculate(u));
+               f.At(u));
 }
