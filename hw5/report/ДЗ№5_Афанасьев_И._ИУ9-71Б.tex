@@ -1,0 +1,280 @@
+\documentclass[a4paper, 14pt]{extarticle}
+
+% Поля
+%--------------------------------------
+\usepackage{geometry}
+\geometry{a4paper,tmargin=2cm,bmargin=2cm,lmargin=3cm,rmargin=1cm}
+%--------------------------------------
+
+
+%Russian-specific packages
+%--------------------------------------
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc} 
+\usepackage[english, main=russian]{babel}
+%--------------------------------------
+
+\usepackage{textcomp}
+
+% Красная строка
+%--------------------------------------
+\usepackage{indentfirst}               
+%--------------------------------------             
+
+
+%Graphics
+%--------------------------------------
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+\usepackage{wrapfig}
+%--------------------------------------
+
+% Полуторный интервал
+%--------------------------------------
+\linespread{1.3}                    
+%--------------------------------------
+
+%Выравнивание и переносы
+%--------------------------------------
+% Избавляемся от переполнений
+\sloppy
+% Запрещаем разрыв страницы после первой строки абзаца
+\clubpenalty=10000
+% Запрещаем разрыв страницы после последней строки абзаца
+\widowpenalty=10000
+%--------------------------------------
+
+%Списки
+\usepackage{enumitem}
+
+%Подписи
+\usepackage{caption} 
+
+\newenvironment{longlisting}{\captionsetup{type=listing}}{}
+
+%Гиперссылки
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  unicode=true,
+}
+
+%Рисунки
+%--------------------------------------
+\DeclareCaptionLabelSeparator*{emdash}{~--- }
+\captionsetup[figure]{labelsep=emdash,font=onehalfspacing,position=bottom}
+%--------------------------------------
+
+\usepackage{tempora}
+
+%Листинги
+%--------------------------------------
+\usepackage{minted}
+
+\renewcommand\listingscaption{Листинг}
+\setminted[py]{
+  frame=single,
+  fontsize=\small,
+  linenos,
+  xleftmargin=1.5em,
+}
+%--------------------------------------
+
+%%% Математические пакеты %%%
+%--------------------------------------
+\usepackage{amsthm,amsfonts,amsmath,amssymb,amscd}  % Математические дополнения от AMS
+\usepackage{mathtools}                              % Добавляет окружение multlined
+\usepackage[perpage]{footmisc}
+%--------------------------------------
+
+%--------------------------------------
+%			НАЧАЛО ДОКУМЕНТА
+%--------------------------------------
+
+\begin{document}
+
+%--------------------------------------
+%			ТИТУЛЬНЫЙ ЛИСТ
+%--------------------------------------
+\begin{titlepage}
+\thispagestyle{empty}
+\newpage
+
+
+%Шапка титульного листа
+%--------------------------------------
+\vspace*{-60pt}
+\hspace{-65pt}
+\begin{minipage}{0.3\textwidth}
+\hspace*{-20pt}\centering
+\includegraphics[width=\textwidth]{emblem}
+\end{minipage}
+\begin{minipage}{0.67\textwidth}\small \textbf{
+\vspace*{-0.7ex}
+\hspace*{-6pt}\centerline{Министерство науки и высшего образования Российской Федерации}
+\vspace*{-0.7ex}
+\centerline{Федеральное государственное бюджетное образовательное учреждение }
+\vspace*{-0.7ex}
+\centerline{высшего образования}
+\vspace*{-0.7ex}
+\centerline{<<Московский государственный технический университет}
+\vspace*{-0.7ex}
+\centerline{имени Н.Э. Баумана}
+\vspace*{-0.7ex}
+\centerline{(национальный исследовательский университет)>>}
+\vspace*{-0.7ex}
+\centerline{(МГТУ им. Н.Э. Баумана)}}
+\end{minipage}
+%--------------------------------------
+
+%Полосы
+%--------------------------------------
+\vspace{-25pt}
+\hspace{-35pt}\rule{\textwidth}{2.3pt}
+
+\vspace*{-20.3pt}
+\hspace{-35pt}\rule{\textwidth}{0.4pt}
+%--------------------------------------
+
+\vspace{1.5ex}
+\hspace{-35pt} \noindent \small ФАКУЛЬТЕТ\hspace{80pt} <<Информатика и системы управления>>
+
+\vspace*{-16pt}
+\hspace{47pt}\rule{0.83\textwidth}{0.4pt}
+
+\vspace{0.5ex}
+\hspace{-35pt} \noindent \small КАФЕДРА\hspace{50pt} <<Теоретическая информатика и компьютерные технологии>>
+
+\vspace*{-16pt}
+\hspace{30pt}\rule{0.866\textwidth}{0.4pt}
+  
+\vspace{11em}
+
+\begin{center}
+\Large {\bf Домашняя работа №5} \\ 
+\large {\bf по курсу <<Теория искусственных нейронных сетей>>} \\
+\large <<Свёрточные нейронные сети>> 
+
+\end{center}\normalsize
+
+\vspace{8em}
+
+\begin{flushright}
+  {Студент группы ИУ9-71Б Афанасьев И. \hspace*{15pt}\\ 
+  \vspace{2ex}
+  Преподаватель Каганов Ю.Т.\hspace*{15pt}}
+\end{flushright}
+
+\bigskip
+
+\vfill
+ 
+
+\begin{center}
+\textsl{Москва 2024}
+\end{center}
+\end{titlepage}
+%--------------------------------------
+%		КОНЕЦ ТИТУЛЬНОГО ЛИСТА
+%--------------------------------------
+
+\renewcommand{\ttdefault}{pcr}
+
+\setlength{\tabcolsep}{3pt}
+\newpage
+\setcounter{page}{2}
+
+\section{Цель работы}
+
+\begin{enumerate}
+  \item Изучение основных архитектур свёрточных нейронных сетей: LeNet-5, VGG-16, ResNet-34.
+  \item Обучение свёрточных сетей с использованием различных оптимизаторов и фреймворка PyTorch.
+\end{enumerate}
+
+\section{Реализация}
+
+В листинге \ref{lst:hw5.py} приводится исходный код программы на языке Python с использованием фреймворка PyTorch.
+
+\begin{longlisting}
+  \caption{Файл \texttt{hw5.py}}
+  \inputminted{py}{../sample/hw5.py}
+  \label{lst:hw5.py}
+\end{longlisting}
+
+\section{Результаты сравнения}
+
+\subsection{Архитектура LeNet-5}
+
+Для обучения нейронной сети с архитектурой LeNet-5 используется датасет MNIST. В таблице \ref{table:lenet-5} приводятся результаты обучения. Точность
+измеряется на тестовых данных
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{||c | c | c | c||}
+ \hline
+ Оптимизатор & Эпохи & Коэффициент обучения & Точность, $\%$ \\ [0.5ex] 
+ \hline\hline
+ SGD & 20 & $10^{-2}$ & 98.7 \\ 
+ \hline
+ AdaDelta & 20 & $10^{-2}$ & 98.8 \\
+ \hline
+ NAD & 20 & $10^{-2}$ & 99.1 \\
+ \hline
+ Adam & 20 & $10^{-2}$ & 98.9 \\ [1ex] 
+ \hline
+\end{tabular}
+\caption{Вариация гиперпараметров LeNet-5.}
+\label{table:lenet-5}
+\end{table}
+
+\subsection{Архитектура VGG-16}
+
+Для обучения нейронной сети с архитектурой VGG-16 используется датасет CIFAR-10. В таблице \ref{table:vgg-16} приводятся результаты обучения.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{||c | c | c | c | c||}
+ \hline
+  Оптимизатор & Эпохи & Коэффициент обучения & Dropout & Точность, $\%$ \\ [0.5ex] 
+ \hline\hline
+  SGD & 20 & $10^{-2}$ & 0.5 & 73.9 \\ 
+ \hline
+  AdaDelta & 20 & $10^{-2}$ & 0.5 & 75.9 \\
+ \hline
+  NAD & 20 & $10^{-2}$ & 0.5 & 80.9 \\
+ \hline
+  Adam & 20 & $10^{-2}$ & 0.5 & 10.0 \\ [1ex] 
+ \hline
+\end{tabular}
+\caption{Вариация гиперпараметров VGG-16.}
+\label{table:vgg-16}
+\end{table}
+
+По таблице \ref{table:vgg-16} видно, что с использованием оптимизатора Adam достигается очень низкая точность --- идёт застревание в локальном минимуме.
+Изменением гиперпараметров (количество эпох, коэффициент обучения, dropout) решить проблему не удаётся.
+
+\subsection{Архитектура ResNet-34}
+
+Для обучения нейронной сети с архитектурой ResNet-34 используется датасет CIFAR-10. В таблице \ref{table:resnet-34} приводятся результаты обучения.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{||c | c | c | c | c||}
+ \hline
+  Оптимизатор & Эпохи & Коэффициент обучения & Dropout & Точность, $\%$ \\ [0.5ex] 
+ \hline\hline
+  SGD & 40 & $10^{-2}$ & 0.5 & 65.4 \\ 
+ \hline
+  AdaDelta & 40 & $10^{-2}$ & 0.5 & 66.3 \\
+ \hline
+  NAD & 40 & $10^{-2}$ & 0.5 & 75.2 \\
+ \hline
+  Adam & 20 & $10^{-2}$ & 0.5 & 74.8 \\ [1ex] 
+ \hline
+\end{tabular}
+\caption{Вариация гиперпараметров ResNet-34.}
+\label{table:resnet-34}
+\end{table}
+
+\end{document}
