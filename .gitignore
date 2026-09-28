@@ -2,6 +2,10 @@
 _minted-*
 build
 venv
+.venv/
+__pycache__/
+*.py[cod]
+build-*/
 datasets
 *.aux
 *.csv

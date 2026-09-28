@@ -1,19 +1,21 @@
-import datetime
+"""Train one model/optimizer pair; datasets are downloaded only with --download."""
+
+import argparse
+import math
+from pathlib import Path
+
 import torch
-import torch.nn as nn
-import torch.optim as optim
+from torch import nn, optim
+from torch.utils.data import DataLoader
+from torchvision import datasets, models, transforms
 
-from torchvision import datasets, transforms, models
-
-DATA_PATH = '../../datasets/'
-BATCH_SIZE = 100
-MOMENTUM = 0.9
-EPOCHS = 20
+MODELS = ("lenet5", "vgg16", "resnet34")
+OPTIMIZERS = ("sgd", "adadelta", "nag", "adam")
 
 
 class LeNet5(nn.Module):
     def __init__(self, num_classes):
-        super(LeNet5, self).__init__()
+        super().__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 6, kernel_size=5, stride=1, padding=0),
             nn.BatchNorm2d(6),
@@ -42,165 +44,145 @@ class LeNet5(nn.Module):
         return out
 
 
-def train(n_epochs, optimizer, model, loss_fn, train_loader):
-    for epoch in range(1, n_epochs + 1):
-        loss_train = 0.0
-        for imgs, labels in train_loader:
-            imgs = imgs.to(device=device)
-            labels = labels.to(device=device)
-            outputs = model(imgs)
-            loss = loss_fn(outputs, labels)
+def create_model(name):
+    if name == "lenet5":
+        return LeNet5(num_classes=10)
+    if name == "vgg16":
+        return models.vgg16(weights=None, num_classes=10, dropout=0.5)
+    if name == "resnet34":
+        return models.resnet34(weights=None, num_classes=10)
+    raise ValueError(f"Unknown model: {name}")
 
-            optimizer.zero_grad()
+
+def create_optimizer(name, parameters, learning_rate):
+    if name == "sgd":
+        return optim.SGD(parameters, lr=learning_rate)
+    if name == "adadelta":
+        return optim.Adadelta(parameters, lr=learning_rate)
+    if name == "nag":
+        return optim.SGD(parameters, lr=learning_rate, momentum=0.9, nesterov=True)
+    if name == "adam":
+        return optim.Adam(parameters, lr=learning_rate)
+    raise ValueError(f"Unknown optimizer: {name}")
+
+
+def train(n_epochs, optimizer, model, loss_fn, train_loader, device):
+    """Train with a mean-reduced loss, returning sample-weighted epoch losses."""
+    if n_epochs <= 0:
+        raise ValueError("Epoch count must be positive")
+    losses = []
+    for epoch in range(1, n_epochs + 1):
+        model.train()
+        loss_sum = 0.0
+        total = 0
+        for images, labels in train_loader:
+            images, labels = images.to(device), labels.to(device)
+            optimizer.zero_grad(set_to_none=True)
+            loss = loss_fn(model(images), labels)
+            if not torch.isfinite(loss):
+                raise RuntimeError("Nonfinite training loss")
             loss.backward()
             optimizer.step()
-
-            loss_train += loss.item()
-
-        print('{} Epoch {}, Training loss {}'.format(
-            datetime.datetime.now(), epoch,
-            loss_train / len(train_loader)))
-
-
-def calculate_accuracy(model, train_loader, test_loader):
-    accdict = {}
-    for name, loader in [("train", train_loader), ("test", test_loader)]:
-        correct = 0
-        total = 0
-
-        with torch.no_grad():
-            for imgs, labels in loader:
-                imgs = imgs.to(device=device)
-                labels = labels.to(device=device)
-                outputs = model(imgs)
-                _, predicted = torch.max(outputs, dim=1)
-                total += labels.shape[0]
-                correct += int((predicted == labels).sum())
-
-        print("Accuracy {}: {:.3f}".format(name, correct / total))
-        accdict[name] = correct / total
-    return accdict
+            total += labels.size(0)
+            loss_sum += loss.item() * labels.size(0)
+        if total == 0:
+            raise ValueError("Empty training loader")
+        losses.append(loss_sum / total)
+        print(f"Epoch {epoch}/{n_epochs}, training loss: {losses[-1]:.6f}")
+    return losses
 
 
-if __name__ == '__main__':
-    device = (torch.device('cuda') if torch.cuda.is_available()
-              else torch.device('cpu'))
-    print(f'Using {device}')
+def accuracy(model, loader, device):
+    # Preserve per-module modes, including intentionally frozen BatchNorm layers.
+    modes = [(module, module.training) for module in model.modules()]
+    model.eval()
+    correct = total = 0
+    try:
+        with torch.inference_mode():
+            for images, labels in loader:
+                images, labels = images.to(device), labels.to(device)
+                predictions = model(images).argmax(dim=1)
+                total += labels.size(0)
+                correct += (predictions == labels).sum().item()
+        if total == 0:
+            raise ValueError("Empty evaluation loader")
+        return correct / total
+    finally:
+        for module, training in modes:
+            module.training = training
 
-    mnist_train = datasets.MNIST(
-        DATA_PATH, train=True, download=True, transform=transforms.Compose([
+
+def load_datasets(model_name, directory, download=False):
+    if model_name == "lenet5":
+        transform = transforms.Compose([
             transforms.Resize((32, 32)),
             transforms.ToTensor(),
-            transforms.Normalize(mean=(0.1307,), std=(0.3081,))]))
-    mnist_test = datasets.MNIST(
-        DATA_PATH, train=False, download=True, transform=transforms.Compose([
-            transforms.Resize((32, 32)),
+            transforms.Normalize((0.1307,), (0.3081,)),
+        ])
+        dataset = datasets.MNIST
+    elif model_name in ("vgg16", "resnet34"):
+        transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean=(0.1325,), std=(0.3105,))]))
+            transforms.Normalize((0.4915, 0.4823, 0.4468), (0.2470, 0.2435, 0.2616)),
+        ])
+        dataset = datasets.CIFAR10
+    else:
+        raise ValueError(f"Unknown model: {model_name}")
+    return (
+        dataset(directory, train=True, download=download, transform=transform),
+        dataset(directory, train=False, download=download, transform=transform),
+    )
 
-    cifar10_train = datasets.CIFAR10(
-        DATA_PATH, train=True, download=True, transform=transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.4915, 0.4823, 0.4468),
-                                 (0.2470, 0.2435, 0.2616))
-        ]))
-    cifar10_test = datasets.CIFAR10(
-        DATA_PATH, train=False, download=True, transform=transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.4915, 0.4823, 0.4468),
-                                 (0.2470, 0.2435, 0.2616))
-        ]))
 
-    loss_fn = nn.CrossEntropyLoss()
+def run_experiment(model_name, optimizer_name, training, testing, *,
+                   epochs, batch_size, learning_rate, seed, device):
+    # Each optimizer starts from the same weights and data-order RNG state.
+    torch.manual_seed(seed)
+    model = create_model(model_name).to(device)
+    optimizer = create_optimizer(optimizer_name, model.parameters(), learning_rate)
+    train_loader = DataLoader(training, batch_size=batch_size, shuffle=True,
+                              generator=torch.Generator().manual_seed(seed))
+    test_loader = DataLoader(testing, batch_size=batch_size, shuffle=False)
+    print(f"{model_name}, {optimizer_name}, device={device}, seed={seed}")
+    losses = train(epochs, optimizer, model, nn.CrossEntropyLoss(), train_loader, device)
+    scores = {
+        "train": accuracy(model, DataLoader(training, batch_size=batch_size), device),
+        "test": accuracy(model, test_loader, device),
+    }
+    print(", ".join(f"{name} accuracy: {value:.3f}" for name, value in scores.items()))
+    return losses, scores
 
-    print('LeNet5, MNIST')
-    model = LeNet5(num_classes=10).to(device=device)
-    train_loader = torch.utils.data.DataLoader(
-        mnist_train, batch_size=BATCH_SIZE, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(
-        mnist_test, batch_size=BATCH_SIZE, shuffle=True)
 
-    print('SGD')
-    optimizer = optim.SGD(model.parameters(), lr=1e-2)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", choices=MODELS, default="lenet5")
+    parser.add_argument("--optimizer", choices=(*OPTIMIZERS, "all"), default="sgd")
+    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--batch-size", type=int, default=100)
+    parser.add_argument("--learning-rate", type=float, default=0.01)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
+    parser.add_argument("--data-dir", type=Path, default=Path("datasets"))
+    parser.add_argument("--download", action="store_true")
+    args = parser.parse_args(argv)
+    if args.epochs <= 0 or args.batch_size <= 0:
+        parser.error("--epochs and --batch-size must be positive")
+    if not math.isfinite(args.learning_rate) or args.learning_rate <= 0:
+        parser.error("--learning-rate must be finite and positive")
+    if not 0 <= args.seed < 2**63:
+        parser.error("--seed must be between 0 and 2**63 - 1")
+    if args.device == "cuda" and not torch.cuda.is_available():
+        parser.error("CUDA is unavailable; use --device cpu or install a CUDA build")
+    try:
+        training, testing = load_datasets(args.model, args.data_dir, args.download)
+        for optimizer in OPTIMIZERS if args.optimizer == "all" else (args.optimizer,):
+            run_experiment(args.model, optimizer, training, testing,
+                           epochs=args.epochs, batch_size=args.batch_size,
+                           learning_rate=args.learning_rate, seed=args.seed,
+                           device=torch.device(args.device))
+    except (RuntimeError, ValueError, OSError) as error:
+        parser.exit(1, f"Error: {error}\n")
 
-    print('Adadelta')
-    optimizer = optim.Adadelta(model.parameters(), lr=1e-2)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
 
-    print('NAG')
-    optimizer = optim.SGD(model.parameters(), lr=1e-2,
-                          momentum=MOMENTUM, nesterov=True)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
-
-    print('Adam')
-    optimizer = optim.Adam(model.parameters(), lr=1e-2)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
-
-    print('VGG16, CIFAR10')
-    model = models.vgg16(num_classes=10, dropout=0.5).to(device=device)
-    train_loader = torch.utils.data.DataLoader(
-        cifar10_train, batch_size=BATCH_SIZE, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(
-        cifar10_test, batch_size=BATCH_SIZE, shuffle=True)
-
-    print('SGD')
-    optimizer = optim.SGD(model.parameters(), lr=1e-2)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
-
-    print('Adadelta')
-    optimizer = optim.Adadelta(model.parameters(), lr=1e-2)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
-
-    print('NAG')
-    optimizer = optim.SGD(model.parameters(), lr=1e-2,
-                          momentum=MOMENTUM, nesterov=True)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
-
-    print('Adam')
-    optimizer = optim.Adam(model.parameters(), lr=1e-2)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
-
-    print('ResNet34, CIFAR10')
-    model = models.resnet34(num_classes=10).to(device)
-
-    print('SGD')
-    optimizer = optim.SGD(model.parameters(), lr=1e-2)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
-
-    print('Adadelta')
-    optimizer = optim.Adadelta(model.parameters(), lr=1e-2)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
-
-    print('NAG')
-    optimizer = optim.SGD(model.parameters(), lr=1e-2,
-                          momentum=MOMENTUM, nesterov=True)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
-
-    print('Adam')
-    optimizer = optim.Adam(model.parameters(), lr=1e-2)
-    train(n_epochs=EPOCHS, optimizer=optimizer, model=model,
-          loss_fn=loss_fn, train_loader=train_loader)
-    calculate_accuracy(model, train_loader, test_loader)
+if __name__ == "__main__":
+    main()

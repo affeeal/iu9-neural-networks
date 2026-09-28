@@ -1,6 +1,9 @@
+#ifdef NN_ENABLE_PLOTS
 #include <matplot/matplot.h>
-
+#endif
+#include <iostream>
 #include <memory>
+#include <string_view>
 
 #include "activation_function.h"
 #include "cost_function.h"
@@ -9,8 +12,8 @@
 
 namespace {
 
-const std::string kDefaultTestPath = "../../datasets/MNIST_CSV/test.csv";
-const std::string kDefaultTrainPath = "../../datasets/MNIST_CSV/train.csv";
+std::string test_path;
+std::string train_path;
 
 constexpr std::size_t kHiddenLayerSize = 40;
 constexpr static auto kCfg = nn::Config{
@@ -24,12 +27,11 @@ constexpr static auto kCfg = nn::Config{
 };
 
 void RunLeakyReluSoftmaxMSE() {
-  const auto data_supplier =
-      hw2::DataSupplier(kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  const auto data_supplier = hw2::DataSupplier(train_path, test_path, 0.0, 1.0);
   const auto training = data_supplier.GetTrainingData();
   const auto testing = data_supplier.GetTestingData();
 
-  auto cost_function = std::make_unique<nn::CrossEntropy>();
+  auto cost_function = std::make_unique<nn::MSE>();
   auto activation_functions =
       std::vector<std::unique_ptr<nn::IActivationFunction>>{};
   activation_functions.push_back(std::make_unique<nn::LeakyReLU>(0.01));
@@ -45,7 +47,8 @@ void RunLeakyReluSoftmaxMSE() {
   const auto metrics =
       perceptron.StochasticGradientSearch(training, testing, kCfg);
 
-  const auto x = matplot::linspace(0, kCfg.epochs);
+#ifdef NN_ENABLE_PLOTS
+  const auto x = matplot::linspace(1, kCfg.epochs, kCfg.epochs);
   matplot::plot(x, metrics.training_cost, x, metrics.testing_cost);
   matplot::title("Leaky ReLU, Softmax + MSE training, testing cost");
   matplot::show();
@@ -53,11 +56,11 @@ void RunLeakyReluSoftmaxMSE() {
   matplot::plot(x, metrics.training_accuracy, x, metrics.testing_accuracy);
   matplot::title("Leaky ReLU, Softmax + MSE training, testing accuracy");
   matplot::show();
+#endif
 }
 
 void RunLeakyReluSoftmaxCrossEntropy() {
-  const auto data_supplier =
-      hw2::DataSupplier(kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  const auto data_supplier = hw2::DataSupplier(train_path, test_path, 0.0, 1.0);
   const auto training = data_supplier.GetTrainingData();
   const auto testing = data_supplier.GetTestingData();
 
@@ -77,21 +80,21 @@ void RunLeakyReluSoftmaxCrossEntropy() {
   const auto metrics =
       perceptron.StochasticGradientSearch(training, testing, kCfg);
 
-  const auto x = matplot::linspace(0, kCfg.epochs);
+#ifdef NN_ENABLE_PLOTS
+  const auto x = matplot::linspace(1, kCfg.epochs, kCfg.epochs);
   matplot::plot(x, metrics.training_cost, x, metrics.testing_cost);
-  matplot::title(
-      "Leaky ReLU, Softmax + Cross-entropy training, testing cost");
+  matplot::title("Leaky ReLU, Softmax + Cross-entropy training, testing cost");
   matplot::show();
 
   matplot::plot(x, metrics.training_accuracy, x, metrics.testing_accuracy);
   matplot::title(
       "Leaky ReLU, Softmax + Cross-entropy training, testing accuracy");
   matplot::show();
+#endif
 }
 
 void RunLeakyReluSoftmaxKlDivergence() {
-  const auto data_supplier =
-      hw2::DataSupplier(kDefaultTrainPath, kDefaultTestPath, 10e-6, 1.0);
+  const auto data_supplier = hw2::DataSupplier(train_path, test_path, 0.0, 1.0);
   const auto training = data_supplier.GetTrainingData();
   const auto testing = data_supplier.GetTestingData();
 
@@ -111,7 +114,8 @@ void RunLeakyReluSoftmaxKlDivergence() {
   const auto metrics =
       perceptron.StochasticGradientSearch(training, testing, kCfg);
 
-  const auto x = matplot::linspace(0, kCfg.epochs);
+#ifdef NN_ENABLE_PLOTS
+  const auto x = matplot::linspace(1, kCfg.epochs, kCfg.epochs);
   matplot::plot(x, metrics.training_cost, x, metrics.testing_cost);
   matplot::title(
       "Leaky ReLU, Softmax + K.-L. Divergence training, testing cost");
@@ -121,12 +125,28 @@ void RunLeakyReluSoftmaxKlDivergence() {
   matplot::title(
       "Leaky ReLU, Softmax + K.-L. Divergence training, testing accuracy");
   matplot::show();
+#endif
 }
 
 }  // namespace
 
-int main(int argc, char *argv[]) {
-  RunLeakyReluSoftmaxMSE();
-  RunLeakyReluSoftmaxCrossEntropy();
-  RunLeakyReluSoftmaxKlDivergence();
+int main(int argc, char* argv[]) {
+  if (argc == 2 && std::string_view(argv[1]) == "--help") {
+    std::cout << "Usage: hw2 TRAIN.csv TEST.csv\n";
+    return 0;
+  }
+  if (argc != 3) {
+    std::cerr << "Usage: hw2 TRAIN.csv TEST.csv\n";
+    return 1;
+  }
+  train_path = argv[1];
+  test_path = argv[2];
+  try {
+    RunLeakyReluSoftmaxMSE();
+    RunLeakyReluSoftmaxCrossEntropy();
+    RunLeakyReluSoftmaxKlDivergence();
+  } catch (const std::exception& error) {
+    std::cerr << error.what() << '\n';
+    return 1;
+  }
 }

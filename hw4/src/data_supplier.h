@@ -22,7 +22,8 @@ class DataSupplier final : public nn::IDataSupplier {
 
  public:
   DataSupplier(const std::string &train_path, const std::string &test_path,
-               const double false_score, const double true_score);
+               const double false_score, const double true_score,
+               std::size_t validation_size = 10'000);
 
   std::size_t GetInputLayerSize() const override;
   std::size_t GetOutputLayerSize() const override;

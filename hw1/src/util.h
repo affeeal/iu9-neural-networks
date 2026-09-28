@@ -1,5 +1,7 @@
 #pragma once
 
+#include <limits>
+#include <stdexcept>
 #include <vector>
 
 namespace hw1 {
@@ -7,7 +9,10 @@ namespace hw1 {
 template <typename T>
 std::vector<std::vector<T>> GeneratePowerset(const std::vector<T>& set) {
   const auto set_size = set.size();
-  const auto powerset_size = static_cast<std::size_t>(1 << set_size);
+  if (set_size >= std::numeric_limits<std::size_t>::digits) {
+    throw std::length_error("Powerset size is not representable");
+  }
+  const auto powerset_size = std::size_t{1} << set_size;
 
   auto powerset = std::vector<std::vector<T>>{};
   powerset.reserve(powerset_size);
@@ -16,7 +21,7 @@ std::vector<std::vector<T>> GeneratePowerset(const std::vector<T>& set) {
     auto subset = std::vector<T>{};
 
     for (std::size_t j = 0; j < set_size; ++j) {
-      if (i & (1 << j)) {
+      if (i & (std::size_t{1} << j)) {
         subset.push_back(set.at(j));
       }
     }

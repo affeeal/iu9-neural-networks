@@ -3,10 +3,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
-#include <map>
-#include <numeric>
 #include <random>
 #include <stdexcept>
 
@@ -16,7 +13,7 @@ namespace nn {
 
 Segment::Segment(const double left, const double right)
     : left_(left), right_(right) {
-  if (left_ > right_) {
+  if (!std::isfinite(left_) || !std::isfinite(right_) || left_ > right_) {
     throw std::runtime_error(
         "The left border must be less or equal than the right one");
   }
@@ -33,6 +30,15 @@ GeneticAlgorithm::GeneticAlgorithm(
       chromosome_subclass_(subclass),
       cfg_(cfg),
       genes_number_(segments.size()) {
+  const auto proportion_valid = [](double p) {
+    return std::isfinite(p) && p >= 0 && p <= 1;
+  };
+  if (!fitness_function_ || cfg.population_size == 0 ||
+      genes_number_ != SgdHyperparametersKit::kHyperparametersNumber ||
+      !proportion_valid(cfg.crossover_proportion) ||
+      !proportion_valid(cfg.mutation_proportion)) {
+    throw std::invalid_argument("Invalid genetic algorithm configuration");
+  }
   genes_distributions_.reserve(genes_number_);
   for (auto&& segment : segments) {
     genes_distributions_.push_back(std::uniform_real_distribution<>(
@@ -89,41 +95,24 @@ std::shared_ptr<IChromosome> GeneticAlgorithm::Run() {
 std::vector<std::shared_ptr<IChromosome>>
 GeneticAlgorithm::RouletteWheelSelection() {
   auto fitness_values = CalculateFitnessValue();
+  const double largest =
+      *std::max_element(fitness_values.begin(), fitness_values.end());
+  for (auto& value : fitness_values) value = largest == 0 ? 1 : value / largest;
+  std::discrete_distribution<std::size_t> distribution(fitness_values.begin(),
+                                                       fitness_values.end());
+  std::vector<std::shared_ptr<IChromosome>> selected;
+  selected.reserve(cfg_.population_size);
   for (std::size_t i = 0; i < cfg_.population_size; ++i) {
-    if (!std::isfinite(fitness_values[i])) {
-      fitness_values[i] = 0;
-    }
+    selected.push_back(population_[distribution(engine_)]);
   }
-
-  auto partial_sum = std::vector<double>(cfg_.population_size);
-  std::partial_sum(fitness_values.cbegin(), fitness_values.cend(),
-                   partial_sum.begin());
-
-  auto partial_sum_to_chromosome =
-      std::map<double, std::shared_ptr<IChromosome>>{};
-  for (std::size_t i = 0; i < cfg_.population_size; ++i) {
-    partial_sum_to_chromosome.insert({partial_sum[i], population_[i]});
-  }
-
-  auto selected_chromosomes = std::vector<std::shared_ptr<IChromosome>>{};
-  selected_chromosomes.reserve(cfg_.population_size);
-  auto distribution =
-      std::uniform_real_distribution<double>{0, partial_sum.back()};
-  for (std::size_t i = 0; i < cfg_.population_size; ++i) {
-    const auto value = distribution(engine_);
-    const auto it = partial_sum_to_chromosome.upper_bound(value);
-    assert(it != partial_sum_to_chromosome.end());
-    selected_chromosomes.push_back(it->second);
-  }
-
-  return selected_chromosomes;
+  return selected;
 }
 
 void GeneticAlgorithm::Crossover(
     std::vector<std::shared_ptr<IChromosome>>& population) {
-  static const auto parents_number = static_cast<std::size_t>(
+  const auto parents_number = static_cast<std::size_t>(
       cfg_.crossover_proportion * cfg_.population_size);
-  static auto distribution = std::uniform_real_distribution<>{0.0, 1.0};
+  auto distribution = std::uniform_real_distribution<>{0.0, 1.0};
   for (std::size_t i = 0; i + 1 < parents_number; i += 2) {
     const auto alpha = distribution(engine_);
 
@@ -153,9 +142,9 @@ void GeneticAlgorithm::Crossover(
 
 void GeneticAlgorithm::Mutate(
     std::vector<std::shared_ptr<IChromosome>>& population) {
-  static const auto mutants_number =
+  const auto mutants_number =
       static_cast<std::size_t>(cfg_.mutation_proportion * cfg_.population_size);
-  static auto distribution =
+  auto distribution =
       std::uniform_int_distribution<>{0, static_cast<int>(genes_number_) - 1};
   for (std::size_t i = 0; i < mutants_number; ++i) {
     const auto mutated_gene_index = distribution(engine_);
@@ -171,8 +160,10 @@ std::vector<double> GeneticAlgorithm::CalculateFitnessValue() const {
   auto fitness_values = std::vector<double>{};
   fitness_values.reserve(cfg_.population_size);
   for (std::size_t i = 0; i < cfg_.population_size; ++i) {
-    fitness_values.push_back(fitness_function_->Assess(*population_[i]));
-    spdlog::info("Chromosome {}/{} fittness value: {}", i + 1,
+    const double fitness = fitness_function_->Assess(*population_[i]);
+    fitness_values.push_back(std::isfinite(fitness) && fitness > 0 ? fitness
+                                                                   : 0);
+    spdlog::info("Chromosome {}/{} fitness value: {}", i + 1,
                  cfg_.population_size, fitness_values.back());
   }
   return fitness_values;

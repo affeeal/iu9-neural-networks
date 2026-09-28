@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <cmath>
 
 namespace nn {
 
@@ -29,24 +30,40 @@ class MSE final : public ICostFunction {
 class CrossEntropy final : public ICostFunction {
  public:
   double Apply(const Eigen::VectorXd& y, const Eigen::VectorXd& a) override {
-    return -(y.array() * a.array().log()).sum();
+    double result = 0;
+    for (Eigen::Index i = 0; i < y.size(); ++i) {
+      if (y[i] != 0) result -= y[i] * std::log(a[i]);
+    }
+    return result;
   }
 
   Eigen::VectorXd GradientWrtActivations(const Eigen::VectorXd& y,
                                          const Eigen::VectorXd& a) override {
-    return -y.array() / a.array();
+    Eigen::VectorXd result(y.size());
+    for (Eigen::Index i = 0; i < y.size(); ++i) {
+      result[i] = y[i] == 0 ? 0 : -y[i] / a[i];
+    }
+    return result;
   }
 };
 
 class KLDivergence final : public ICostFunction {
  public:
   double Apply(const Eigen::VectorXd& y, const Eigen::VectorXd& a) override {
-    return (y.array() * (y.array() / a.array()).log()).sum();
+    double result = 0;
+    for (Eigen::Index i = 0; i < y.size(); ++i) {
+      if (y[i] != 0) result += y[i] * (std::log(y[i]) - std::log(a[i]));
+    }
+    return result;
   }
 
   Eigen::VectorXd GradientWrtActivations(const Eigen::VectorXd& y,
                                          const Eigen::VectorXd& a) override {
-    return -y.array() / a.array();
+    Eigen::VectorXd result(y.size());
+    for (Eigen::Index i = 0; i < y.size(); ++i) {
+      result[i] = y[i] == 0 ? 0 : -y[i] / a[i];
+    }
+    return result;
   }
 };
 

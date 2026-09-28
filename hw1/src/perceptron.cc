@@ -2,18 +2,23 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <iterator>
 #include <sstream>
+#include <stdexcept>
+
+#include "output_layer.h"
 
 namespace nn {
 
 Perceptron::Perceptron(
     std::unique_ptr<ICostFunction>&& cost_function,
     std::vector<std::unique_ptr<IActivationFunction>>&& activation_functions,
-    const std::vector<std::size_t>& layers_sizes)
-    : generator_(device_()),
+    const std::vector<std::size_t>& layers_sizes, std::uint32_t seed)
+    : generator_(seed),
       cost_function_(std::move(cost_function)),
       layers_number_(layers_sizes.size()),
       connections_number_(layers_number_ - 1),
@@ -27,16 +32,30 @@ Perceptron::Perceptron(
         "Activation functions number must be equal to layers number minus one");
   }
 
+  if (!cost_function_ ||
+      std::any_of(layers_sizes.begin(), layers_sizes.end(),
+                  [](auto size) { return size == 0; }) ||
+      std::any_of(activation_functions_.begin(), activation_functions_.end(),
+                  [](const auto& activation) { return !activation; })) {
+    throw std::invalid_argument(
+        "Layers must be nonempty; functions must not be null");
+  }
+  std::uniform_real_distribution<double> distribution(-1.0, 1.0);
+  const auto random_value = [&] { return distribution(generator_); };
   weights_.reserve(connections_number_);
   biases_.reserve(connections_number_);
   for (std::size_t i = 0; i < connections_number_; ++i) {
-    weights_.push_back(
-        Eigen::MatrixXd::Random(layers_sizes[i + 1], layers_sizes[i]));
-    biases_.push_back(Eigen::VectorXd::Random(layers_sizes[i + 1]));
+    weights_.push_back(Eigen::MatrixXd::NullaryExpr(
+        layers_sizes[i + 1], layers_sizes[i], random_value));
+    biases_.push_back(
+        Eigen::VectorXd::NullaryExpr(layers_sizes[i + 1], random_value));
   }
 }
 
 Eigen::VectorXd Perceptron::Feedforward(const Eigen::VectorXd& x) const {
+  if (x.size() != weights_.front().cols() || !x.allFinite()) {
+    throw std::invalid_argument("Invalid input vector");
+  }
   auto activation = x;
   for (std::size_t i = 0; i < connections_number_; ++i) {
     activation =
@@ -49,6 +68,7 @@ Metric Perceptron::StochasticGradientSearch(
     const std::vector<std::shared_ptr<const IData>>& training,
     const std::vector<std::shared_ptr<const IData>>& testing,
     const Config& cfg) {
+  ValidateTraining(training, testing, cfg);
   const auto training_size = training.size();
   const auto whole_mini_batches_number = training_size / cfg.mini_batch_size;
   const auto remainder_mini_batch_size = training_size % cfg.mini_batch_size;
@@ -114,9 +134,8 @@ Perceptron::Backpropagation(const Eigen::VectorXd& x,
   assert(zs.size() == connections_number_);
   assert(activations.size() == layers_number_);
 
-  auto delta = static_cast<Eigen::VectorXd>(
-      activation_functions_.back()->Jacobian(zs.back()).transpose() *
-      cost_function_->GradientWrtActivations(y, activations.back()));
+  auto delta = OutputDelta(*activation_functions_.back(), *cost_function_, y,
+                           zs.back(), activations.back());
 
   auto nabla_weights_reversed = std::vector<Eigen::MatrixXd>{};
   nabla_weights_reversed.reserve(connections_number_);
@@ -127,7 +146,7 @@ Perceptron::Backpropagation(const Eigen::VectorXd& x,
   nabla_biases_reversed.reserve(connections_number_);
   nabla_biases_reversed.push_back(delta);
 
-  for (int i = connections_number_ - 2; i >= 0; --i) {
+  for (std::size_t i = connections_number_ - 1; i-- > 0;) {
     delta = (weights_[i + 1] * activation_functions_[i]->Jacobian(zs[i]))
                 .transpose() *
             delta;
@@ -142,7 +161,7 @@ Perceptron::Backpropagation(const Eigen::VectorXd& x,
 }
 
 std::pair<std::vector<Eigen::VectorXd>, std::vector<Eigen::VectorXd>>
-Perceptron::FeedforwardDetailed(const Eigen::VectorXd& x) {
+Perceptron::FeedforwardDetailed(const Eigen::VectorXd& x) const {
   std::vector<Eigen::VectorXd> zs, activations;
   zs.reserve(connections_number_);
   activations.reserve(layers_number_);
@@ -197,7 +216,7 @@ void Perceptron::WriteMetric(
   }
   if (cfg.monitor_testing_cost) {
     const auto testing_cost = Cost(testing.begin(), testing.end());
-    metric.testing_cost.push_back(Cost(testing.begin(), testing.end()));
+    metric.testing_cost.push_back(testing_cost);
     oss << " testing cost: " << testing_cost << ";";
   }
   if (cfg.monitor_testing_accuracy) {
@@ -206,7 +225,7 @@ void Perceptron::WriteMetric(
     oss << " testing accuracy: " << testing_accuracy << "/" << testing.size()
         << ";";
   }
-  spdlog::info(oss.str());
+  spdlog::info("{}", oss.str());
 }
 
 template <typename Iter>
@@ -230,10 +249,38 @@ double Perceptron::Cost(const Iter begin, const Iter end) const {
   std::size_t instances_count = 0;
   for (auto it = begin; it != end; ++it, ++instances_count) {
     const IData& instance = **it;
-    const auto activation = Feedforward(instance.GetX());
-    cost += cost_function_->Apply(instance.GetY(), activation);
+    const auto [logits, activations] = FeedforwardDetailed(instance.GetX());
+    cost += OutputCost(*activation_functions_.back(), *cost_function_,
+                       instance.GetY(), logits.back());
   }
   return cost / instances_count;
+}
+
+void Perceptron::ValidateTraining(
+    const std::vector<std::shared_ptr<const IData>>& train,
+    const std::vector<std::shared_ptr<const IData>>& test,
+    const Config& cfg) const {
+  if (train.empty() || cfg.epochs == 0 || cfg.mini_batch_size == 0 ||
+      !std::isfinite(cfg.eta) || cfg.eta <= 0 ||
+      ((cfg.monitor_testing_cost || cfg.monitor_testing_accuracy) &&
+       test.empty())) {
+    throw std::invalid_argument(
+        "Invalid training configuration or empty dataset");
+  }
+  for (const auto* dataset : {&train, &test}) {
+    for (const auto& item : *dataset) {
+      if (!item || item->GetX().size() != weights_.front().cols() ||
+          item->GetY().size() != weights_.back().rows() ||
+          !item->GetX().allFinite() || !item->GetY().allFinite()) {
+        throw std::invalid_argument("Invalid training sample");
+      }
+      if (IsCategorical(*cost_function_) &&
+          ((item->GetY().array() < 0).any() || item->GetY().sum() <= 0)) {
+        throw std::invalid_argument(
+            "Categorical targets must be nonnegative with positive mass");
+      }
+    }
+  }
 }
 
 }  // namespace nn

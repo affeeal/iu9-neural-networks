@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build CPU development image
+        run: docker build -f Containerfile.dev -t iu9-neural-networks-dev .
+      - name: Check release build and Python
+        run: docker run --rm --network=none -v "$PWD:/workspace:ro" iu9-neural-networks-dev
+      - name: Check with sanitizers
+        run: >-
+          docker run --rm --network=none -v "$PWD:/workspace:ro"
+          -e SANITIZE=ON -e BUILD_TYPE=Debug iu9-neural-networks-dev

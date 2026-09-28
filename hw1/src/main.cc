@@ -1,6 +1,9 @@
+#ifdef NN_ENABLE_PLOTS
 #include <matplot/matplot.h>
-
+#endif
+#include <iostream>
 #include <memory>
+#include <string_view>
 
 #include "activation_function.h"
 #include "cost_function.h"
@@ -36,7 +39,8 @@ void RunLinearMse() {
   const auto metrics =
       perceptron.StochasticGradientSearch(training, testing, kCfg);
 
-  const auto x = matplot::linspace(0, kCfg.epochs);
+#ifdef NN_ENABLE_PLOTS
+  const auto x = matplot::linspace(1, kCfg.epochs, kCfg.epochs);
   matplot::plot(x, metrics.training_cost, x, metrics.testing_cost);
   matplot::title("Linear + MSE training, testing cost");
   matplot::show();
@@ -44,6 +48,7 @@ void RunLinearMse() {
   matplot::plot(x, metrics.training_accuracy, x, metrics.testing_accuracy);
   matplot::title("Linear + MSE training, testing accuracy");
   matplot::show();
+#endif
 }
 
 void RunReluMse() {
@@ -73,7 +78,8 @@ void RunReluMse() {
   const auto metrics =
       perceptron.StochasticGradientSearch(training, testing, kCfg);
 
-  const auto x = matplot::linspace(0, kCfg.epochs);
+#ifdef NN_ENABLE_PLOTS
+  const auto x = matplot::linspace(1, kCfg.epochs, kCfg.epochs);
   matplot::plot(x, metrics.training_cost, x, metrics.testing_cost);
   matplot::title("ReLU + MSE training, testing cost");
   matplot::show();
@@ -81,6 +87,7 @@ void RunReluMse() {
   matplot::plot(x, metrics.training_accuracy, x, metrics.testing_accuracy);
   matplot::title("ReLU + MSE training, testing accuracy");
   matplot::show();
+#endif
 }
 
 void RunSigmoidMse() {
@@ -110,7 +117,8 @@ void RunSigmoidMse() {
   const auto metrics =
       perceptron.StochasticGradientSearch(training, testing, kCfg);
 
-  const auto x = matplot::linspace(0, kCfg.epochs);
+#ifdef NN_ENABLE_PLOTS
+  const auto x = matplot::linspace(1, kCfg.epochs, kCfg.epochs);
   matplot::plot(x, metrics.training_cost, x, metrics.testing_cost);
   matplot::title("Sigmoid + MSE training, testing cost");
   matplot::show();
@@ -118,6 +126,7 @@ void RunSigmoidMse() {
   matplot::plot(x, metrics.training_accuracy, x, metrics.testing_accuracy);
   matplot::title("Sigmoid + MSE training, testing accuracy");
   matplot::show();
+#endif
 }
 
 void RunTanhMse() {
@@ -147,7 +156,8 @@ void RunTanhMse() {
   const auto metrics =
       perceptron.StochasticGradientSearch(training, testing, kCfg);
 
-  const auto x = matplot::linspace(0, kCfg.epochs);
+#ifdef NN_ENABLE_PLOTS
+  const auto x = matplot::linspace(1, kCfg.epochs, kCfg.epochs);
   matplot::plot(x, metrics.training_cost, x, metrics.testing_cost);
   matplot::title("Tanh + MSE training, testing cost");
   matplot::show();
@@ -155,6 +165,7 @@ void RunTanhMse() {
   matplot::plot(x, metrics.training_accuracy, x, metrics.testing_accuracy);
   matplot::title("Tanh + MSE training, testing accuracy");
   matplot::show();
+#endif
 }
 
 void RunSoftmaxCrossEntropy() {
@@ -184,7 +195,8 @@ void RunSoftmaxCrossEntropy() {
   const auto metrics =
       perceptron.StochasticGradientSearch(training, testing, kCfg);
 
-  const auto x = matplot::linspace(0, kCfg.epochs);
+#ifdef NN_ENABLE_PLOTS
+  const auto x = matplot::linspace(1, kCfg.epochs, kCfg.epochs);
   matplot::plot(x, metrics.training_cost, x, metrics.testing_cost);
   matplot::title("Softmax + Cross-entropy training, testing cost");
   matplot::show();
@@ -192,11 +204,12 @@ void RunSoftmaxCrossEntropy() {
   matplot::plot(x, metrics.training_accuracy, x, metrics.testing_accuracy);
   matplot::title("Softmax + Cross-entropy training, testing accuracy");
   matplot::show();
+#endif
 }
 
 }  // namespace
 
-int main(int argc, char* argv[]) {
+int main() {
   RunLinearMse();
   RunReluMse();
   RunSigmoidMse();

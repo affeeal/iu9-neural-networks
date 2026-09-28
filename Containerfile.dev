@@ -1,0 +1,14 @@
+FROM registry.fedoraproject.org/fedora:44
+
+RUN dnf install -y gcc-c++ cmake make eigen3-devel spdlog-devel \
+        python3 python3-pip libasan libubsan clang-tools-extra ShellCheck \
+    && dnf clean all
+
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:${PATH}" PYTHONDONTWRITEBYTECODE=1
+RUN python3 -m venv /opt/venv
+COPY hw5/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+WORKDIR /workspace
+CMD ["bash", "scripts/check.sh"]

@@ -1,88 +1,29 @@
 #include "data_supplier.h"
 
-#include <spdlog/spdlog.h>
-
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <cassert>
-#include <fstream>
 #include <iterator>
 #include <stdexcept>
-#include <string>
 
-#include "perceptron.h"
+#include "mnist_csv.h"
 
 namespace nn {
 
-namespace {
-
-constexpr std::size_t kDigitsNumber = 10;
-constexpr std::size_t kScanSize = 784;
-constexpr std::size_t kColumnsCount = kScanSize + 1;
-
-std::vector<std::shared_ptr<const nn::IData>> ReadMnistCsv(
-    const std::string &filename, const double false_score,
-    const double true_score) {
-  static constexpr std::size_t kShadesCount = 255;
-
-  auto file = std::ifstream(filename);
-  if (!file.is_open()) {
-    throw std::runtime_error("Failed to open MNIST CSV file " + filename);
+DataSupplier::DataSupplier(const std::string& train_path,
+                           const std::string& test_path, double false_score,
+                           double true_score, std::size_t validation_size) {
+  train_ = nn::ReadMnistCsv<Data>(train_path, false_score, true_score);
+  if (validation_size == 0 || train_.size() <= validation_size) {
+    throw std::invalid_argument(
+        "MNIST training data must exceed the nonzero validation size");
   }
-
-  auto instances = std::vector<std::shared_ptr<const nn::IData>>{};
-  auto line = std::string{};
-  while (std::getline(file, line)) {
-    auto result = std::vector<std::string>{};
-    result.reserve(kColumnsCount);
-    boost::split(result, line, boost::is_any_of(","));
-
-    assert(result[0].size() == 1);
-    assert('0' <= result[0][0] && result[0][0] <= '9');
-
-    auto data = Data{};
-    data.label = result[0];
-
-    data.y = Eigen::VectorXd(kDigitsNumber);
-    data.y.setConstant(false_score);
-    data.y(data.label[0] - '0') = true_score;
-
-    data.x = Eigen::VectorXd(kScanSize);
-    for (std::size_t i = 1; i < kColumnsCount; ++i) {
-      data.x[i - 1] = std::stod(result[i]) / kShadesCount;
-    }
-
-    instances.push_back(std::make_shared<const Data>(std::move(data)));
-  }
-
-  return instances;
+  const auto split =
+      train_.end() - static_cast<std::ptrdiff_t>(validation_size);
+  validation_.assign(std::make_move_iterator(split),
+                     std::make_move_iterator(train_.end()));
+  train_.erase(split, train_.end());
+  test_ = nn::ReadMnistCsv<Data>(test_path, false_score, true_score);
 }
-
-}  // namespace
-
-DataSupplier::DataSupplier(const std::string &train_path,
-                           const std::string &test_path,
-                           const double false_score, const double true_score) {
-  static constexpr std::size_t kTrainInitialSize = 60'000;
-  static constexpr std::size_t kValidationSize = 10'000;
-  static constexpr std::size_t kTestSize = 10'000;
-
-  spdlog::info("Parsing train data...");
-  train_ = ReadMnistCsv(train_path, false_score, true_score);
-  assert(train_.size() == kTrainInitialSize);
-
-  validation_ =
-      std::vector(std::make_move_iterator(train_.rbegin()),
-                  std::make_move_iterator(train_.rbegin() + kValidationSize));
-  train_.resize(kTrainInitialSize - kValidationSize);
-
-  spdlog::info("Parsing test data...");
-  test_ = ReadMnistCsv(test_path, false_score, true_score);
-  assert(test_.size() == kTestSize);
-}
-
-std::size_t DataSupplier::GetInputLayerSize() const { return kScanSize; }
-std::size_t DataSupplier::GetOutputLayerSize() const { return kDigitsNumber; }
+std::size_t DataSupplier::GetInputLayerSize() const { return 784; }
+std::size_t DataSupplier::GetOutputLayerSize() const { return 10; }
 
 std::vector<std::shared_ptr<const nn::IData>> DataSupplier::GetTrainData()
     const {

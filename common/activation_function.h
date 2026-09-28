@@ -1,6 +1,9 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <cmath>
+#include <functional>
+#include <stdexcept>
 
 namespace nn {
 
@@ -18,7 +21,7 @@ class Linear final : public IActivationFunction {
   Eigen::VectorXd Apply(const Eigen::VectorXd& z) override { return z; }
 
   Eigen::MatrixXd Jacobian(const Eigen::VectorXd& z) override {
-    return Eigen::MatrixXd::Identity(z.rows(), z.cols());
+    return Eigen::MatrixXd::Identity(z.size(), z.size());
   }
 };
 
@@ -29,7 +32,7 @@ class ReLU final : public IActivationFunction {
   }
 
   Eigen::MatrixXd Jacobian(const Eigen::VectorXd& z) override {
-    return z.array().cwiseTypedGreaterOrEqual(0.0).matrix().asDiagonal();
+    return (z.array() >= 0.0).cast<double>().matrix().asDiagonal();
   }
 };
 
@@ -53,7 +56,10 @@ class LeakyReLU final : public IActivationFunction {
 class Sigmoid final : public IActivationFunction {
  public:
   Eigen::VectorXd Apply(const Eigen::VectorXd& z) override {
-    return 1.0 / (1.0 + (-z).array().exp());
+    return z.unaryExpr([](double x) {
+      const double e = std::exp(-std::abs(x));
+      return x >= 0 ? 1.0 / (1.0 + e) : e / (1.0 + e);
+    });
   }
 
   Eigen::MatrixXd Jacobian(const Eigen::VectorXd& z) override {
@@ -65,9 +71,7 @@ class Sigmoid final : public IActivationFunction {
 class Tanh final : public IActivationFunction {
  public:
   Eigen::VectorXd Apply(const Eigen::VectorXd& z) override {
-    const auto e_z = z.array().exp();
-    const auto e_neg_z = (-z).array().exp();
-    return (e_z - e_neg_z) / (e_z + e_neg_z);
+    return z.array().tanh();
   }
 
   Eigen::MatrixXd Jacobian(const Eigen::VectorXd& z) override {
@@ -79,7 +83,13 @@ class Tanh final : public IActivationFunction {
 class Softmax final : public IActivationFunction {
  public:
   Eigen::VectorXd Apply(const Eigen::VectorXd& z) override {
-    const auto e_z = z.array().exp();
+    if (z.size() == 0) {
+      throw std::invalid_argument("Softmax requires nonempty logits");
+    }
+    if (!z.allFinite()) {
+      throw std::overflow_error("Nonfinite softmax logits");
+    }
+    const Eigen::ArrayXd e_z = (z.array() - z.maxCoeff()).exp();
     return e_z / e_z.sum();
   }
 

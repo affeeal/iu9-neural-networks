@@ -39,9 +39,8 @@ class SgdHyperparametersKit final : public IChromosome {
     kNeuronsPerHiddenLayer,
   };
 
-  static constexpr std::size_t kHyperparametersNumber = 5;
-
  public:
+  static constexpr std::size_t kHyperparametersNumber = 5;
   SgdHyperparametersKit(std::vector<double>&& hyperparameters);
 
   double get_learning_rate() const;

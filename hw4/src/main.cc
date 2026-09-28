@@ -1,8 +1,12 @@
+#ifdef NN_ENABLE_PLOTS
 #include <matplot/matplot.h>
+#endif
 #include <spdlog/common.h>
 #include <spdlog/spdlog.h>
 
+#include <iostream>
 #include <memory>
+#include <string_view>
 
 #include "activation_function.h"
 #include "chromosome.h"
@@ -14,8 +18,8 @@
 
 namespace {
 
-const std::string kDefaultTestPath = "../../datasets/MNIST_CSV/test.csv";
-const std::string kDefaultTrainPath = "../../datasets/MNIST_CSV/train.csv";
+std::string test_path;
+std::string train_path;
 
 void RunLeakyReluSoftmaxCrossEntropy() {
   constexpr std::size_t kHiddenLayerSize = 40;
@@ -29,8 +33,7 @@ void RunLeakyReluSoftmaxCrossEntropy() {
       .monitor_test_accuracy = true,
   };
 
-  const auto data_supplier =
-      nn::DataSupplier(kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  const auto data_supplier = nn::DataSupplier(train_path, test_path, 0.0, 1.0);
   const auto train = data_supplier.GetTrainData();
   const auto test = data_supplier.GetTestData();
 
@@ -47,6 +50,7 @@ void RunLeakyReluSoftmaxCrossEntropy() {
       std::move(cost_function), std::move(activation_functions), layers_sizes);
   const auto metrics = perceptron.Sgd(train, test, kCfg);
 
+#ifdef NN_ENABLE_PLOTS
   matplot::title("Leaky ReLU, Softmax + Cross-entropy train, test cost");
   matplot::plot(metrics.train_cost)->display_name("Train data");
   matplot::hold(matplot::on);
@@ -66,24 +70,12 @@ void RunLeakyReluSoftmaxCrossEntropy() {
   matplot::xlabel("Epochs");
   matplot::ylabel("Hit");
   matplot::show();
+#endif
 }
 
 void RunGeneticAlgorithmSgd() {
-  /*
-   * Train cost: 0.0964943;
-   * Train accuracy: 48532/50000;
-   * Test cost: 0.14492;
-   * Test accuracy: 9580/10000;
-   *
-   * Learning rate: 0.0959074;
-   * Epochs: 100;
-   * Mini-batch size: 100;
-   * Hidden layers: 1;
-   * Neurons per hidden layer: 28
-   */
-
-  auto data_supplier = std::make_unique<nn::DataSupplier>(
-      kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  auto data_supplier =
+      std::make_unique<nn::DataSupplier>(train_path, test_path, 0.0, 1.0);
   auto fitness_function =
       std::make_unique<nn::SgdFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
@@ -106,21 +98,8 @@ void RunGeneticAlgorithmSgd() {
 }
 
 void RunGeneticAlgorithmSgdNag() {
-  /*
-   * Train cost: 0.0957484;
-   * Train accuracy: 48562/50000;
-   * Test cost: 0.146654;
-   * Test accuracy: 9565/10000;
-   *
-   * Learning rate: 0.0100863;
-   * Epochs: 100;
-   * Mini-batch size: 100;
-   * Hidden layers: 1;
-   * Neurons per hidden layer: 28
-   */
-
-  auto data_supplier = std::make_unique<nn::DataSupplier>(
-      kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  auto data_supplier =
+      std::make_unique<nn::DataSupplier>(train_path, test_path, 0.0, 1.0);
   auto fitness_function =
       std::make_unique<nn::SgdNagFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
@@ -143,21 +122,8 @@ void RunGeneticAlgorithmSgdNag() {
 }
 
 void RunGeneticAlgorithmSgdAdagrad() {
-  /*
-   * Train cost: 0.181089;
-   * Train accuracy: 47361/50000;
-   * Test cost: 0.214604;
-   * Test accuracy: 9395/10000;
-   *
-   * Learning rate: 0.936544;
-   * Epochs: 100;
-   * Mini-batch size: 100;
-   * Hidden layers: 1;
-   * Neurons per hidden layer: 36
-   */
-
-  auto data_supplier = std::make_unique<nn::DataSupplier>(
-      kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  auto data_supplier =
+      std::make_unique<nn::DataSupplier>(train_path, test_path, 0.0, 1.0);
   auto fitness_function =
       std::make_unique<nn::SgdAdagradFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
@@ -180,21 +146,8 @@ void RunGeneticAlgorithmSgdAdagrad() {
 }
 
 void RunGeneticAlgorithmSgdAdam() {
-  /*
-   * Train cost: 0.0886979;
-   * Train accuracy: 48692/50000;
-   * Test cost: 0.143935;
-   * Test accuracy: 9620/10000;
-   *
-   * Learning rate: 0.0462101;
-   * Epochs: 100;
-   * Mini-batch size: 100;
-   * Hidden layers: 3;
-   * Neurons per hidden layer: 35
-   */
-
-  auto data_supplier = std::make_unique<nn::DataSupplier>(
-      kDefaultTrainPath, kDefaultTestPath, 0.0, 1.0);
+  auto data_supplier =
+      std::make_unique<nn::DataSupplier>(train_path, test_path, 0.0, 1.0);
   auto fitness_function =
       std::make_unique<nn::SgdAdamFitness>(std::move(data_supplier));
   const auto segments = std::vector<nn::Segment>{
@@ -218,9 +171,33 @@ void RunGeneticAlgorithmSgdAdam() {
 
 }  // namespace
 
-int main() {
-  RunGeneticAlgorithmSgd();
-  RunGeneticAlgorithmSgdNag();
-  RunGeneticAlgorithmSgdAdagrad();
-  RunGeneticAlgorithmSgdAdam();
+int main(int argc, char* argv[]) {
+  if (argc == 2 && std::string_view(argv[1]) == "--help") {
+    std::cout << "Usage: hw4 TRAIN.csv TEST.csv {train|sgd|nag|adagrad|adam}\n";
+    return 0;
+  }
+  if (argc != 4) {
+    std::cerr << "Usage: hw4 TRAIN.csv TEST.csv {train|sgd|nag|adagrad|adam}\n";
+    return 1;
+  }
+  train_path = argv[1];
+  test_path = argv[2];
+  try {
+    const std::string_view optimizer = argv[3];
+    if (optimizer == "train")
+      RunLeakyReluSoftmaxCrossEntropy();
+    else if (optimizer == "sgd")
+      RunGeneticAlgorithmSgd();
+    else if (optimizer == "nag")
+      RunGeneticAlgorithmSgdNag();
+    else if (optimizer == "adagrad")
+      RunGeneticAlgorithmSgdAdagrad();
+    else if (optimizer == "adam")
+      RunGeneticAlgorithmSgdAdam();
+    else
+      throw std::invalid_argument("Unknown optimizer");
+  } catch (const std::exception& error) {
+    std::cerr << error.what() << '\n';
+    return 1;
+  }
 }

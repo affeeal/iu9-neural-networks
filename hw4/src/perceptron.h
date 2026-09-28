@@ -1,8 +1,11 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <cstdint>
 #include <memory>
 #include <random>
+#include <string_view>
+#include <vector>
 
 #include "activation_function.h"
 #include "cost_function.h"
@@ -49,7 +52,6 @@ struct Metric final {
 };
 
 class Perceptron final {
-  std::random_device device_;
   std::default_random_engine generator_;
   std::unique_ptr<ICostFunction> cost_function_;
   std::size_t layers_number_, connections_number_;
@@ -61,7 +63,8 @@ class Perceptron final {
   Perceptron(
       std::unique_ptr<ICostFunction> &&cost_function,
       std::vector<std::unique_ptr<IActivationFunction>> &&activation_functions,
-      const std::vector<std::size_t> &layers_sizes);
+      const std::vector<std::size_t> &layers_sizes,
+      std::uint32_t seed = std::random_device{}());
 
   Eigen::VectorXd Feedforward(const Eigen::VectorXd &x) const;
 
@@ -82,8 +85,13 @@ class Perceptron final {
                  const SgdConfiguration &cfg, const double beta1,
                  const double beta2, const double epsilon);
 
+  const std::vector<Eigen::MatrixXd> &get_weights() const { return weights_; }
+  const std::vector<Eigen::VectorXd> &get_biases() const { return biases_; }
+
  private:
-  // TODO: Use concepts
+  void ValidateTraining(const std::vector<std::shared_ptr<const IData>> &train,
+                        const std::vector<std::shared_ptr<const IData>> &test,
+                        const SgdConfiguration &cfg) const;
   template <typename Iter>
   void UpdateSgd(const Iter mini_batch_begin, const Iter mini_batch_end,
                  const std::size_t mini_batch_size, const double learning_rate);
@@ -101,7 +109,8 @@ class Perceptron final {
       std::vector<Eigen::MatrixXd> &weights_gradient_squares_sum,
       std::vector<Eigen::VectorXd> &biases_gradient_squares_sum,
       const Iter mini_batch_begin, const Iter mini_batch_end,
-      const std::size_t mini_batch_size, const double learning_rate);
+      const std::size_t mini_batch_size, const double learning_rate,
+      const double epsilon);
 
   template <typename Iter>
   void UpdateSgdAdam(std::vector<Eigen::MatrixXd> &weights_gradient_ema,
@@ -109,9 +118,9 @@ class Perceptron final {
                      std::vector<Eigen::MatrixXd> &weights_squared_gradient_ema,
                      std::vector<Eigen::VectorXd> &biases_squared_gradient_ema,
                      const Iter mini_batch_begin, const Iter mini_batch_end,
-                     const std::size_t mini_batch_size, const std::size_t epoch,
+                     const std::size_t mini_batch_size, const std::size_t step,
                      const double learning_rate, const double beta1,
-                     const double beta2);
+                     const double beta2, const double epsilon);
 
  private:
   struct Parameters {

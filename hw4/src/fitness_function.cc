@@ -1,6 +1,7 @@
 #include "fitness_function.h"
 
-#include <cassert>
+#include <cmath>
+#include <stdexcept>
 
 #include "chromosome.h"
 #include "cost_function.h"
@@ -11,16 +12,18 @@ namespace nn {
 namespace {
 
 double CostToFitness(const double value) {
-  return std::exp(1 / (value + 1e-8));
+  return std::isfinite(value) && value >= 0 ? 1 / (1 + value) : 0;
 }
 
 }  // namespace
 
 ISgdFitness::ISgdFitness(std::unique_ptr<IDataSupplier>&& data_supplier)
-    : data_supplier_(std::move(data_supplier)) {}
+    : data_supplier_(std::move(data_supplier)) {
+  if (!data_supplier_) throw std::invalid_argument("Null data supplier");
+}
 
 double SgdFitness::Assess(const IChromosome& chromosome) const {
-  const auto kit = static_cast<const SgdHyperparametersKit&>(chromosome);
+  const auto kit = dynamic_cast<const SgdHyperparametersKit&>(chromosome);
 
   auto cost_function = std::make_unique<CrossEntropy>();
 
@@ -55,16 +58,21 @@ double SgdFitness::Assess(const IChromosome& chromosome) const {
   };
 
   const auto train_data = data_supplier_->GetTrainData();
-  const auto test_data = data_supplier_->GetTestData();
+  const auto validation_data = data_supplier_->GetValidationData();
 
-  auto metrics = perceptron.Sgd(train_data, test_data, cfg);
-  return CostToFitness(metrics.test_cost.back());
+  try {
+    const auto metrics = perceptron.Sgd(train_data, validation_data, cfg);
+    return CostToFitness(metrics.test_cost.back());
+  } catch (const std::overflow_error&) {
+    // Numerical divergence is a failed candidate, not a failed search.
+    return 0;
+  }
 }
 
 double SgdNagFitness::Assess(const IChromosome& chromosome) const {
   constexpr double kGamma = 0.9;
 
-  const auto kit = static_cast<const SgdHyperparametersKit&>(chromosome);
+  const auto kit = dynamic_cast<const SgdHyperparametersKit&>(chromosome);
 
   auto cost_function = std::make_unique<CrossEntropy>();
 
@@ -99,16 +107,22 @@ double SgdNagFitness::Assess(const IChromosome& chromosome) const {
   };
 
   const auto train_data = data_supplier_->GetTrainData();
-  const auto test_data = data_supplier_->GetTestData();
+  const auto validation_data = data_supplier_->GetValidationData();
 
-  auto metrics = perceptron.SgdNag(train_data, test_data, cfg, kGamma);
-  return CostToFitness(metrics.test_cost.back());
+  try {
+    const auto metrics =
+        perceptron.SgdNag(train_data, validation_data, cfg, kGamma);
+    return CostToFitness(metrics.test_cost.back());
+  } catch (const std::overflow_error&) {
+    // Numerical divergence is a failed candidate, not a failed search.
+    return 0;
+  }
 }
 
 double SgdAdagradFitness::Assess(const IChromosome& chromosome) const {
   constexpr double kEpsilon = 1e-8;
 
-  const auto kit = static_cast<const SgdHyperparametersKit&>(chromosome);
+  const auto kit = dynamic_cast<const SgdHyperparametersKit&>(chromosome);
 
   auto cost_function = std::make_unique<CrossEntropy>();
 
@@ -143,10 +157,16 @@ double SgdAdagradFitness::Assess(const IChromosome& chromosome) const {
   };
 
   const auto train_data = data_supplier_->GetTrainData();
-  const auto test_data = data_supplier_->GetTestData();
+  const auto validation_data = data_supplier_->GetValidationData();
 
-  auto metrics = perceptron.SgdAdagrad(train_data, test_data, cfg, kEpsilon);
-  return CostToFitness(metrics.test_cost.back());
+  try {
+    const auto metrics =
+        perceptron.SgdAdagrad(train_data, validation_data, cfg, kEpsilon);
+    return CostToFitness(metrics.test_cost.back());
+  } catch (const std::overflow_error&) {
+    // Numerical divergence is a failed candidate, not a failed search.
+    return 0;
+  }
 }
 
 double SgdAdamFitness::Assess(const IChromosome& chromosome) const {
@@ -154,7 +174,7 @@ double SgdAdamFitness::Assess(const IChromosome& chromosome) const {
   constexpr double kBeta1 = 0.9;
   constexpr double kBeta2 = 0.999;
 
-  const auto kit = static_cast<const SgdHyperparametersKit&>(chromosome);
+  const auto kit = dynamic_cast<const SgdHyperparametersKit&>(chromosome);
 
   auto cost_function = std::make_unique<CrossEntropy>();
 
@@ -189,11 +209,16 @@ double SgdAdamFitness::Assess(const IChromosome& chromosome) const {
   };
 
   const auto train_data = data_supplier_->GetTrainData();
-  const auto test_data = data_supplier_->GetTestData();
+  const auto validation_data = data_supplier_->GetValidationData();
 
-  auto metrics =
-      perceptron.SgdAdam(train_data, test_data, cfg, kBeta1, kBeta2, kEpsilon);
-  return CostToFitness(metrics.test_cost.back());
+  try {
+    const auto metrics = perceptron.SgdAdam(train_data, validation_data, cfg,
+                                            kBeta1, kBeta2, kEpsilon);
+    return CostToFitness(metrics.test_cost.back());
+  } catch (const std::overflow_error&) {
+    // Numerical divergence is a failed candidate, not a failed search.
+    return 0;
+  }
 }
 
 }  // namespace nn

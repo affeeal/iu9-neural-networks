@@ -2,19 +2,23 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <iostream>
 #include <iterator>
 #include <sstream>
+#include <stdexcept>
+
+#include "output_layer.h"
 
 namespace nn {
 
 Perceptron::Perceptron(
     std::unique_ptr<ICostFunction> &&cost_function,
     std::vector<std::unique_ptr<IActivationFunction>> &&activation_functions,
-    const std::vector<std::size_t> &layers_sizes)
-    : generator_(device_()),
+    const std::vector<std::size_t> &layers_sizes, std::uint32_t seed)
+    : generator_(seed),
       cost_function_(std::move(cost_function)),
       layers_number_(layers_sizes.size()),
       connections_number_(layers_number_ - 1),
@@ -27,16 +31,30 @@ Perceptron::Perceptron(
         "Activation functions number must be equal to layers number minus one");
   }
 
+  if (!cost_function_ ||
+      std::any_of(layers_sizes.begin(), layers_sizes.end(),
+                  [](auto size) { return size == 0; }) ||
+      std::any_of(activation_functions_.begin(), activation_functions_.end(),
+                  [](const auto &activation) { return !activation; })) {
+    throw std::invalid_argument(
+        "Layers must be nonempty; functions must not be null");
+  }
+  std::uniform_real_distribution<double> distribution(-1.0, 1.0);
+  const auto random_value = [&] { return distribution(generator_); };
   weights_.reserve(connections_number_);
   biases_.reserve(connections_number_);
   for (std::size_t i = 0; i < connections_number_; ++i) {
-    weights_.push_back(
-        Eigen::MatrixXd::Random(layers_sizes[i + 1], layers_sizes[i]));
-    biases_.push_back(Eigen::VectorXd::Random(layers_sizes[i + 1]));
+    weights_.push_back(Eigen::MatrixXd::NullaryExpr(
+        layers_sizes[i + 1], layers_sizes[i], random_value));
+    biases_.push_back(
+        Eigen::VectorXd::NullaryExpr(layers_sizes[i + 1], random_value));
   }
 }
 
 Eigen::VectorXd Perceptron::Feedforward(const Eigen::VectorXd &x) const {
+  if (x.size() != weights_.front().cols() || !x.allFinite()) {
+    throw std::invalid_argument("Invalid input vector");
+  }
   auto activation = x;
   for (std::size_t i = 0; i < connections_number_; ++i) {
     activation =
@@ -48,6 +66,7 @@ Eigen::VectorXd Perceptron::Feedforward(const Eigen::VectorXd &x) const {
 Metric Perceptron::Sgd(const std::vector<std::shared_ptr<const IData>> &train,
                        const std::vector<std::shared_ptr<const IData>> &test,
                        const SgdConfiguration &cfg) {
+  ValidateTraining(train, test, cfg);
   const auto train_size = train.size();
   const auto whole_mini_batches_number = train_size / cfg.mini_batch_size;
   const auto remainder_mini_batch_size = train_size % cfg.mini_batch_size;
@@ -77,10 +96,11 @@ Metric Perceptron::SgdNag(
     const std::vector<std::shared_ptr<const IData>> &train,
     const std::vector<std::shared_ptr<const IData>> &test,
     const SgdConfiguration &cfg, const double gamma) {
-  if (gamma < 0 || gamma > 1) {
-    throw std::runtime_error("Gamma must belong to [0, 1]");
+  if (!std::isfinite(gamma) || gamma < 0 || gamma >= 1) {
+    throw std::runtime_error("Gamma must belong to [0, 1)");
   }
 
+  ValidateTraining(train, test, cfg);
   const auto train_size = train.size();
   const auto whole_mini_batches_number = train_size / cfg.mini_batch_size;
   const auto remainder_mini_batch_size = train_size % cfg.mini_batch_size;
@@ -113,16 +133,17 @@ Metric Perceptron::SgdAdagrad(
     const std::vector<std::shared_ptr<const IData>> &train,
     const std::vector<std::shared_ptr<const IData>> &test,
     const SgdConfiguration &cfg, const double epsilon) {
-  if (epsilon <= 0) {
+  if (!std::isfinite(epsilon) || epsilon <= 0) {
     throw std::runtime_error("Epsilon must be strictly greater than 0");
   }
 
+  ValidateTraining(train, test, cfg);
   const auto train_size = train.size();
   const auto whole_mini_batches_number = train_size / cfg.mini_batch_size;
   const auto remainder_mini_batch_size = train_size % cfg.mini_batch_size;
 
   auto [weights_gradient_squares_sum, biases_gradient_squares_sum] =
-      CreateParameters(epsilon);
+      CreateParameters(0);
   auto train_shuffled = std::vector(train.begin(), train.end());
   auto metric = CreateMetric(cfg);
   for (std::size_t i = 1; i <= cfg.epochs; ++i) {
@@ -132,7 +153,7 @@ Metric Perceptron::SgdAdagrad(
       auto end = it + cfg.mini_batch_size;
       UpdateSgdAdagrad(weights_gradient_squares_sum,
                        biases_gradient_squares_sum, it, end,
-                       cfg.mini_batch_size, cfg.learning_rate);
+                       cfg.mini_batch_size, cfg.learning_rate, epsilon);
       it = std::move(end);
     }
 
@@ -140,7 +161,7 @@ Metric Perceptron::SgdAdagrad(
       UpdateSgdAdagrad(weights_gradient_squares_sum,
                        biases_gradient_squares_sum, it,
                        it + remainder_mini_batch_size,
-                       remainder_mini_batch_size, cfg.learning_rate);
+                       remainder_mini_batch_size, cfg.learning_rate, epsilon);
     }
     WriteMetric(metric, i, train, test, cfg);
   }
@@ -153,25 +174,27 @@ Metric Perceptron::SgdAdam(
     const std::vector<std::shared_ptr<const IData>> &test,
     const SgdConfiguration &cfg, const double beta1, const double beta2,
     const double epsilon) {
-  if (beta1 < 0 || beta1 > 1) {
-    throw std::runtime_error("Beta1 must belong to [0, 1]");
+  if (!std::isfinite(beta1) || beta1 < 0 || beta1 >= 1) {
+    throw std::runtime_error("Beta1 must belong to [0, 1)");
   }
-  if (beta2 < 0 || beta2 > 1) {
-    throw std::runtime_error("Beta2 must belong to [0, 1]");
+  if (!std::isfinite(beta2) || beta2 < 0 || beta2 >= 1) {
+    throw std::runtime_error("Beta2 must belong to [0, 1)");
   }
-  if (epsilon <= 0) {
+  if (!std::isfinite(epsilon) || epsilon <= 0) {
     throw std::runtime_error("Epsilon must be strictly greater than 0");
   }
 
+  ValidateTraining(train, test, cfg);
   const auto train_size = train.size();
   const auto whole_mini_batches_number = train_size / cfg.mini_batch_size;
   const auto remainder_mini_batch_size = train_size % cfg.mini_batch_size;
 
   auto [weights_gradient_ema, biases_gradient_ema] = CreateParameters(0);
   auto [weights_squared_gradient_ema, biases_squared_gradient_ema] =
-      CreateParameters(epsilon);
+      CreateParameters(0);
   auto train_shuffled = std::vector(train.begin(), train.end());
   auto metric = CreateMetric(cfg);
+  std::size_t step = 0;
   for (std::size_t i = 1; i <= cfg.epochs; ++i) {
     std::shuffle(train_shuffled.begin(), train_shuffled.end(), generator_);
     auto it = train_shuffled.begin();
@@ -179,8 +202,8 @@ Metric Perceptron::SgdAdam(
       auto end = it + cfg.mini_batch_size;
       UpdateSgdAdam(weights_gradient_ema, biases_gradient_ema,
                     weights_squared_gradient_ema, biases_squared_gradient_ema,
-                    it, end, cfg.mini_batch_size, i, cfg.learning_rate, beta1,
-                    beta2);
+                    it, end, cfg.mini_batch_size, ++step, cfg.learning_rate,
+                    beta1, beta2, epsilon);
       it = std::move(end);
     }
 
@@ -188,8 +211,8 @@ Metric Perceptron::SgdAdam(
       UpdateSgdAdam(weights_gradient_ema, biases_gradient_ema,
                     weights_squared_gradient_ema, biases_squared_gradient_ema,
                     it, it + remainder_mini_batch_size,
-                    remainder_mini_batch_size, i, cfg.learning_rate, beta1,
-                    beta2);
+                    remainder_mini_batch_size, ++step, cfg.learning_rate, beta1,
+                    beta2, epsilon);
     }
     WriteMetric(metric, i, train, test, cfg);
   }
@@ -227,12 +250,13 @@ void Perceptron::UpdateSgdNag(std::vector<Eigen::MatrixXd> &delta_weights_ema,
       GradientWrtParameters(mini_batch_begin, mini_batch_end, mini_batch_size);
 
   for (std::size_t i = 0; i < connections_number_; ++i) {
-    const auto saved_delta_weights_ema = gamma * delta_weights_ema[i];
+    const Eigen::MatrixXd saved_delta_weights_ema =
+        gamma * delta_weights_ema[i];
     delta_weights_ema[i] =
         saved_delta_weights_ema + learning_rate * weights_gradient[i];
     weights_[i] += saved_delta_weights_ema - delta_weights_ema[i];
 
-    const auto saved_delta_biases_ema = gamma * delta_biases_ema[i];
+    const Eigen::VectorXd saved_delta_biases_ema = gamma * delta_biases_ema[i];
     delta_biases_ema[i] =
         saved_delta_biases_ema + learning_rate * biases_gradient[i];
     biases_[i] += saved_delta_biases_ema - delta_biases_ema[i];
@@ -244,20 +268,23 @@ void Perceptron::UpdateSgdAdagrad(
     std::vector<Eigen::MatrixXd> &weights_gradient_squares_sum,
     std::vector<Eigen::VectorXd> &biases_gradient_squares_sum,
     const Iter mini_batch_begin, const Iter mini_batch_end,
-    const std::size_t mini_batch_size, const double learning_rate) {
+    const std::size_t mini_batch_size, const double learning_rate,
+    const double epsilon) {
   auto [weights_gradient, biases_gradient] =
       GradientWrtParameters(mini_batch_begin, mini_batch_end, mini_batch_size);
 
   for (std::size_t i = 0; i < connections_number_; ++i) {
     weights_gradient_squares_sum[i] +=
         weights_gradient[i].array().pow(2).matrix();
-    weights_[i] -= learning_rate / weights_gradient_squares_sum[i].lpNorm<2>() *
-                   weights_gradient[i];
+    weights_[i].array() -=
+        learning_rate * weights_gradient[i].array() /
+        (weights_gradient_squares_sum[i].array().sqrt() + epsilon);
 
     biases_gradient_squares_sum[i] +=
         biases_gradient[i].array().pow(2).matrix();
-    biases_[i] -= learning_rate / biases_gradient_squares_sum[i].lpNorm<2>() *
-                  biases_gradient[i];
+    biases_[i].array() -=
+        learning_rate * biases_gradient[i].array() /
+        (biases_gradient_squares_sum[i].array().sqrt() + epsilon);
   }
 }
 
@@ -268,23 +295,22 @@ void Perceptron::UpdateSgdAdam(
     std::vector<Eigen::MatrixXd> &weights_squared_gradient_ema,
     std::vector<Eigen::VectorXd> &biases_squared_gradient_ema,
     const Iter mini_batch_begin, const Iter mini_batch_end,
-    const std::size_t mini_batch_size, const std::size_t epoch,
-    const double learning_rate, const double beta1, const double beta2) {
+    const std::size_t mini_batch_size, const std::size_t step,
+    const double learning_rate, const double beta1, const double beta2,
+    const double epsilon) {
   auto [weights_gradient, biases_gradient] =
       GradientWrtParameters(mini_batch_begin, mini_batch_end, mini_batch_size);
 
   for (std::size_t i = 0; i < connections_number_; ++i) {
-    // Надеюсь, комплиятор догадается вынести available expressions - лично мне
-    // лень.
     weights_gradient_ema[i] =
         beta1 * weights_gradient_ema[i] + (1 - beta1) * weights_gradient[i];
     biases_gradient_ema[i] =
         beta1 * biases_gradient_ema[i] + (1 - beta1) * biases_gradient[i];
 
     const auto adjusted_weights_gradient_ema =
-        weights_gradient_ema[i] / (1 - std::pow(beta1, epoch));
+        weights_gradient_ema[i] / (1 - std::pow(beta1, step));
     const auto adjusted_biases_gradient_ema =
-        biases_gradient_ema[i] / (1 - std::pow(beta1, epoch));
+        biases_gradient_ema[i] / (1 - std::pow(beta1, step));
 
     weights_squared_gradient_ema[i] =
         beta2 * weights_squared_gradient_ema[i] +
@@ -294,16 +320,16 @@ void Perceptron::UpdateSgdAdam(
         (1 - beta2) * biases_gradient[i].array().pow(2).matrix();
 
     const auto adjusted_weights_squared_gradient_ema =
-        weights_squared_gradient_ema[i] / (1 - std::pow(beta2, epoch));
+        weights_squared_gradient_ema[i] / (1 - std::pow(beta2, step));
     const auto adjusted_biases_squared_gradient_ema =
-        biases_squared_gradient_ema[i] / (1 - std::pow(beta2, epoch));
+        biases_squared_gradient_ema[i] / (1 - std::pow(beta2, step));
 
-    weights_[i] -= learning_rate /
-                   adjusted_weights_squared_gradient_ema.lpNorm<2>() *
-                   adjusted_weights_gradient_ema;
-    biases_[i] -= learning_rate /
-                  adjusted_biases_squared_gradient_ema.lpNorm<2>() *
-                  adjusted_biases_gradient_ema;
+    weights_[i].array() -=
+        learning_rate * adjusted_weights_gradient_ema.array() /
+        (adjusted_weights_squared_gradient_ema.array().sqrt() + epsilon);
+    biases_[i].array() -=
+        learning_rate * adjusted_biases_gradient_ema.array() /
+        (adjusted_biases_squared_gradient_ema.array().sqrt() + epsilon);
   }
 }
 
@@ -359,9 +385,8 @@ Perceptron::Parameters Perceptron::Backpropagation(
   assert(linear_values.size() == connections_number_);
   assert(activations.size() == layers_number_);
 
-  auto delta = static_cast<Eigen::VectorXd>(
-      activation_functions_.back()->Jacobian(linear_values.back()).transpose() *
-      cost_function_->GradientWrtActivations(y, activations.back()));
+  auto delta = OutputDelta(*activation_functions_.back(), *cost_function_, y,
+                           linear_values.back(), activations.back());
 
   auto nabla_weights_reversed = std::vector<Eigen::MatrixXd>{};
   nabla_weights_reversed.reserve(connections_number_);
@@ -372,7 +397,7 @@ Perceptron::Parameters Perceptron::Backpropagation(
   nabla_biases_reversed.reserve(connections_number_);
   nabla_biases_reversed.push_back(delta);
 
-  for (int i = connections_number_ - 2; i >= 0; --i) {
+  for (std::size_t i = connections_number_ - 1; i-- > 0;) {
     delta =
         (weights_[i + 1] * activation_functions_[i]->Jacobian(linear_values[i]))
             .transpose() *
@@ -442,15 +467,16 @@ void Perceptron::WriteMetric(
   }
   if (cfg.monitor_test_cost) {
     const auto test_cost = CalculateCost(test.begin(), test.end());
-    metric.test_cost.push_back(CalculateCost(test.begin(), test.end()));
-    oss << " test cost: " << test_cost << ";";
+    metric.test_cost.push_back(test_cost);
+    oss << " evaluation cost: " << test_cost << ";";
   }
   if (cfg.monitor_test_accuracy) {
     const auto test_accuracy = CalculateAccuracy(test.begin(), test.end());
     metric.test_accuracy.push_back(test_accuracy);
-    oss << " test accuracy: " << test_accuracy << "/" << test.size() << ";";
+    oss << " evaluation accuracy: " << test_accuracy << "/" << test.size()
+        << ";";
   }
-  spdlog::info(oss.str());
+  spdlog::info("{}", oss.str());
 }
 
 template <typename Iter>
@@ -475,10 +501,37 @@ double Perceptron::CalculateCost(const Iter begin, const Iter end) const {
   std::size_t instances_count = 0;
   for (auto it = begin; it != end; ++it, ++instances_count) {
     const IData &instance = **it;
-    const auto activation = Feedforward(instance.GetX());
-    cost += cost_function_->Apply(instance.GetY(), activation);
+    const auto [logits, activations] = FeedforwardDetailed(instance.GetX());
+    cost += OutputCost(*activation_functions_.back(), *cost_function_,
+                       instance.GetY(), logits.back());
   }
   return cost / instances_count;
+}
+
+void Perceptron::ValidateTraining(
+    const std::vector<std::shared_ptr<const IData>> &train,
+    const std::vector<std::shared_ptr<const IData>> &test,
+    const SgdConfiguration &cfg) const {
+  if (train.empty() || cfg.epochs == 0 || cfg.mini_batch_size == 0 ||
+      !std::isfinite(cfg.learning_rate) || cfg.learning_rate <= 0 ||
+      ((cfg.monitor_test_cost || cfg.monitor_test_accuracy) && test.empty())) {
+    throw std::invalid_argument(
+        "Invalid training configuration or empty dataset");
+  }
+  for (const auto *dataset : {&train, &test}) {
+    for (const auto &item : *dataset) {
+      if (!item || item->GetX().size() != weights_.front().cols() ||
+          item->GetY().size() != weights_.back().rows() ||
+          !item->GetX().allFinite() || !item->GetY().allFinite()) {
+        throw std::invalid_argument("Invalid training sample");
+      }
+      if (IsCategorical(*cost_function_) &&
+          ((item->GetY().array() < 0).any() || item->GetY().sum() <= 0)) {
+        throw std::invalid_argument(
+            "Categorical targets must be nonnegative with positive mass");
+      }
+    }
+  }
 }
 
 }  // namespace nn

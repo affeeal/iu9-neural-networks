@@ -1,5 +1,7 @@
 #include "chromosome.h"
 
+#include <cmath>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 
@@ -11,6 +13,7 @@ std::shared_ptr<IChromosome> IChromosome::Create(
     case ChromosomeSubclass::kSgdHyperparametersKit:
       return std::make_shared<SgdHyperparametersKit>(std::move(genes));
   }
+  throw std::invalid_argument("Unknown chromosome subclass");
 }
 
 const std::vector<double>& IChromosome::get_genes() const { return genes_; }
@@ -25,6 +28,17 @@ SgdHyperparametersKit::SgdHyperparametersKit(
     throw std::runtime_error(
         "Got " + std::to_string(genes_.size()) + " SGD hyperparameters, " +
         std::to_string(kHyperparametersNumber) + " expected");
+  }
+  for (std::size_t i = 0; i < genes_.size(); ++i) {
+    const double gene = genes_[i];
+    if (!std::isfinite(gene) || gene < 0 ||
+        (i != Index::kHiddenLayers && gene <= 0) ||
+        (i != Index::kLearningRate &&
+         (gene >=
+              static_cast<double>(std::numeric_limits<std::size_t>::max()) ||
+          (i != Index::kHiddenLayers && gene < 1)))) {
+      throw std::invalid_argument("Invalid SGD hyperparameter");
+    }
   }
 }
 

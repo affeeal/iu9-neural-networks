@@ -21,7 +21,6 @@ class Segment final {
 
 class GeneticAlgorithm final {
  public:
-  // TODO: Validate the configuration
   struct Configuration final {
     std::size_t populations_number;
     std::size_t population_size;
